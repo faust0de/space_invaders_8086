@@ -9,56 +9,56 @@
 ; ============================================================
 ; STACK SEGMENT - Reserved memory for the call stack
 ; ============================================================
-STACK SEGMENT PARA STACK           ; Declara el segmento de pila, alineado a parrafo (16 bytes)
-    DB 128 DUP (' ')               ; Reserva 128 bytes para la pila, inicializados con espacios
-STACK ENDS                         ; Fin del segmento de pila
+STACK SEGMENT PARA STACK           ; Declare the stack segment, paragraph-aligned (16 bytes)
+    DB 128 DUP (' ')               ; Reserve 128 bytes for the stack, initialized with spaces
+STACK ENDS                         ; End of stack segment
 
 ; ============================================================
 ; DATA SEGMENT - All game variables and constants
 ; ============================================================
-DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a parrafo
+DATA SEGMENT PARA 'DATA'           ; Declare the data segment, paragraph-aligned
 
     ; --- Screen dimensions (CGA Mode 4: 320x200) ---
-    WINDOW_WIDTH    DW 0140h       ; Ancho de pantalla en pixels (0x140 = 320 decimal)
-    WINDOW_HEIGHT   DW 00C8h       ; Alto de pantalla en pixels (0xC8 = 200 decimal)
+    WINDOW_WIDTH    DW 0140h       ; Screen width in pixels (0x140 = 320 decimal)
+    WINDOW_HEIGHT   DW 00C8h       ; Screen height in pixels (0xC8 = 200 decimal)
 
     ; --- Game state flags ---
-    GAME_ACTIVE     DB 01h         ; Controla el bucle principal: 1 = juego activo, 0 = game over
-    GAME_WIN        DB 00h         ; Condicion de fin: 1 = jugador gano, 0 = jugador perdio
+    GAME_ACTIVE     DB 01h         ; Controls the main loop: 1 = game running, 0 = game over
+    GAME_WIN        DB 00h         ; End condition: 1 = player won, 0 = player lost
 
     ; --- Time control (technique from Pong tutorial) ---
     ; INT 21h/AH=2Ch returns DL = hundredths of second (0-99)
     ; We compare each frame to detect when the value changes (= new tick)
-    TIME_AUX        DB 00h         ; Ultimo valor de 1/100 seg visto; controla la velocidad del bucle
+    TIME_AUX        DB 00h         ; Last 1/100s value seen; controls the loop speed
 
     ; --- Score display ---
-    SCORE           DW 0000h       ; Puntaje numerico actual (aumenta +10 por cada enemigo eliminado)
-    SCORE_STR       DB '00000', 00h ; Cadena ASCII de 5 digitos para mostrar puntaje + terminador nulo
+    SCORE           DW 0000h       ; Current numeric score (+10 for each enemy destroyed)
+    SCORE_STR       DB '00000', 00h ; 5-digit ASCII string for displaying the score + null terminator
     SCORE_X         DW 0008h       ; Columna de texto donde se dibuja el puntaje
     SCORE_Y         DW 0002h       ; Fila de texto donde se dibuja el puntaje
 
     ; --- End screen messages (null-terminated ASCII strings) ---
-    MSG_GAMEOVER    DB 'GAME OVER', 00h            ; Mensaje cuando el jugador pierde
-    MSG_WIN         DB 'YOU WIN!', 00h             ; Mensaje cuando todos los enemigos son eliminados
-    MSG_SCORE       DB 'SCORE:', 00h               ; Etiqueta que aparece antes del puntaje final
-    MSG_RESTART     DB 'R=RESTART  Q=QUIT', 00h    ; Instrucciones mostradas en la pantalla final
+    MSG_GAMEOVER    DB 'GAME OVER', 00h            ; Message shown when the player loses
+    MSG_WIN         DB 'YOU WIN!', 00h             ; Message shown when all enemies are eliminated
+    MSG_SCORE       DB 'SCORE:', 00h               ; Label shown before the final score
+    MSG_RESTART     DB 'R=RESTART  Q=QUIT', 00h    ; Instructions shown on the end screen
 
     ; --- CGA palette 1 color indices (Mode 04h, palette 1: black/cyan/magenta/white) ---
-    COLOR_BLACK     EQU 00h        ; Indice 0 = negro (fondo de pantalla)
-    COLOR_CYAN      EQU 01h        ; Indice 1 = cian (color de los bunkers)
-    COLOR_MAGENTA   EQU 02h        ; Indice 2 = magenta (color de los enemigos)
-    COLOR_WHITE     EQU 03h        ; Indice 3 = blanco (jugador y balas)
+    COLOR_BLACK     EQU 00h        ; Index 0 = black (screen background)
+    COLOR_CYAN      EQU 01h        ; Index 1 = cyan (bunker color)
+    COLOR_MAGENTA   EQU 02h        ; Index 2 = magenta (enemy color)
+    COLOR_WHITE     EQU 03h        ; Index 3 = white (player and bullets)
 
     ; --- Screen edge margin ---
-    WINDOW_BOUNDS   DW 0006h       ; Margen minimo en pixels desde el borde izquierdo/derecho
+    WINDOW_BOUNDS   DW 0006h       ; Minimum margin in pixels from the left/right edge
 
     ; ========================
     ; PLAYER DATA
     ; ========================
-    PLAYER_X        DW 0098h       ; Posicion horizontal del jugador en pixels (152 = centro de pantalla)
-    PLAYER_Y        DW 00B0h       ; Posicion vertical del jugador en pixels (176 = cerca del fondo)
-    PLAYER_COLOR    DB 03h         ; Color del jugador = blanco (indice CGA 3)
-    PLAYER_VELOCITY DW 0004h       ; Pixels que se mueve el jugador por tecla presionada
+    PLAYER_X        DW 0098h       ; Player horizontal position in pixels (152 = screen center)
+    PLAYER_Y        DW 00B0h       ; Player vertical position in pixels (176 = near the bottom)
+    PLAYER_COLOR    DB 03h         ; Player color = white (CGA index 3)
+    PLAYER_VELOCITY DW 0004h       ; Pixels the player moves per key press
 
     ; Player sprite definition (5 columns x 3 rows):
     ; 0 = transparent pixel (not drawn), 1 = solid pixel (drawn in PLAYER_COLOR)
@@ -66,42 +66,42 @@ DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a pa
     ;   Row 0:  . . X . .
     ;   Row 1:  . X X X .
     ;   Row 2:  X X X X X
-    PLAYER_SPRITE   DB 0,0,1,0,0   ; Fila 0: punta del canon (parte superior del tanque)
+    PLAYER_SPRITE   DB 0,0,1,0,0   ; Row 0: cannon tip (top of the tank)
                     DB 0,1,1,1,0   ; Row 1: turret body
-                    DB 1,1,1,1,1   ; Fila 2: base del tanque (ancho completo)
-    SPRITE_WIDTH    DW 0005h       ; Numero de columnas del sprite del jugador
-    SPRITE_HEIGHT   DW 0003h       ; Numero de filas del sprite del jugador
-    SPRITE_SCALE    DW 0004h       ; Factor de escala: cada pixel del sprite = bloque 4x4 en pantalla
+                    DB 1,1,1,1,1   ; Row 2: tank base (full width)
+    SPRITE_WIDTH    DW 0005h       ; Number of columns in the player sprite
+    SPRITE_HEIGHT   DW 0003h       ; Number of rows in the player sprite
+    SPRITE_SCALE    DW 0004h       ; Scale factor: each sprite pixel = a 4x4 block on screen
 
     ; ========================
     ; PLAYER BULLET DATA
     ; ========================
-    BULLET_X        DW 0000h       ; Posicion X actual de la bala del jugador
-    BULLET_Y        DW 0000h       ; Posicion Y actual de la bala del jugador
-    BULLET_ACTIVE   DB 00h         ; Estado de la bala: 0 = inactiva, 1 = en vuelo
-    BULLET_VELOCITY DW 0006h       ; Pixels que sube la bala por tick de juego
-    BULLET_COLOR    DB 03h         ; Color de la bala = blanco (indice CGA 3)
+    BULLET_X        DW 0000h       ; Current X position of the player's bullet
+    BULLET_Y        DW 0000h       ; Current Y position of the player's bullet
+    BULLET_ACTIVE   DB 00h         ; Bullet state: 0 = inactive, 1 = in flight
+    BULLET_VELOCITY DW 0006h       ; Pixels the bullet moves upward per game tick
+    BULLET_COLOR    DB 03h         ; Bullet color = white (CGA index 3)
 
     ; Bullet sprite (3 columns x 4 rows):
     ;   . X .
     ;   . X .
     ;   . X .
     ;   X X X
-    BULLET_SPRITE   DB 0,1,0       ; Fila 0: eje delgado de la bala
-                    DB 0,1,0       ; Fila 1: eje delgado
-                    DB 0,1,0       ; Fila 2: eje delgado
-                    DB 1,1,1       ; Fila 3: base de la bala
-    BULLET_SPRITE_WIDTH  DW 0003h  ; Numero de columnas del sprite de bala
-    BULLET_SPRITE_HEIGHT DW 0004h  ; Numero de filas del sprite de bala
+    BULLET_SPRITE   DB 0,1,0       ; Row 0: thin bullet shaft
+                    DB 0,1,0       ; Row 1: thin shaft
+                    DB 0,1,0       ; Row 2: thin shaft
+                    DB 1,1,1       ; Row 3: bullet base
+    BULLET_SPRITE_WIDTH  DW 0003h  ; Number of columns in the bullet sprite
+    BULLET_SPRITE_HEIGHT DW 0004h  ; Number of rows in the bullet sprite
 
     ; ========================
     ; ENEMY BULLET DATA
     ; ========================
-    EBULLET_X       DW 0000h       ; Posicion X actual de la bala enemiga
-    EBULLET_Y       DW 0000h       ; Posicion Y actual de la bala enemiga
-    EBULLET_ACTIVE  DB 00h         ; Estado: 0 = inactiva, 1 = bala enemiga en vuelo
-    EBULLET_VELOCITY DW 0003h      ; Pixels que baja la bala enemiga por tick
-    EBULLET_COLOR   DB 02h         ; Color de la bala enemiga = magenta (indice CGA 2)
+    EBULLET_X       DW 0000h       ; Current X position of the enemy bullet
+    EBULLET_Y       DW 0000h       ; Current Y position of the enemy bullet
+    EBULLET_ACTIVE  DB 00h         ; State: 0 = inactive, 1 = enemy bullet in flight
+    EBULLET_VELOCITY DW 0003h      ; Pixels the enemy bullet moves downward per tick
+    EBULLET_COLOR   DB 02h         ; Enemy bullet color = magenta (CGA index 2)
 
     ; ========================
     ; BUNKER DATA
@@ -111,27 +111,27 @@ DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a pa
     ;   X X X X X X X
     ;   X X X X X X X
     ;   X X . . . X X   <- notch at bottom center (entrance for player)
-    BUNKER_SPRITE   DB 0,1,1,1,1,1,0   ; Fila 0: parte superior redondeada del bunker
-                    DB 1,1,1,1,1,1,1   ; Fila 1: ancho completo
-                    DB 1,1,1,1,1,1,1   ; Fila 2: ancho completo
-                    DB 1,1,0,0,0,1,1   ; Fila 3: base con hueco central para el jugador
-    BUNKER_SPRITE_WIDTH  DW 0007h  ; Numero de columnas del sprite del bunker (7 pixels)
-    BUNKER_SPRITE_HEIGHT DW 0004h  ; Numero de filas del sprite del bunker (4 pixels)
-    BUNKER_SCALE         DW 0003h  ; Factor de escala: cada pixel del sprite = bloque 3x3
-    BUNKER_SCALE_BYTE    DB 03h    ; Misma escala pero en BYTE (necesario para la instruccion DIV BL)
+    BUNKER_SPRITE   DB 0,1,1,1,1,1,0   ; Row 0: rounded top of the bunker
+                    DB 1,1,1,1,1,1,1   ; Row 1: full width
+                    DB 1,1,1,1,1,1,1   ; Row 2: full width
+                    DB 1,1,0,0,0,1,1   ; Row 3: base with a center notch for the player
+    BUNKER_SPRITE_WIDTH  DW 0007h  ; Number of columns in the bunker sprite (7 pixels)
+    BUNKER_SPRITE_HEIGHT DW 0004h  ; Number of rows in the bunker sprite (4 pixels)
+    BUNKER_SCALE         DW 0003h  ; Scale factor: each sprite pixel = a 3x3 block
+    BUNKER_SCALE_BYTE    DB 03h    ; Same scale, but as a BYTE (needed for DIV BL)
 
     ; Screen positions of the two bunkers
-    BUNKER1_X       DW 0050h       ; Posicion X del bunker izquierdo en pixels (80)
-    BUNKER2_X       DW 00D0h       ; Posicion X del bunker derecho en pixels (208)
-    BUNKER_Y        DW 0090h       ; Ambos bunkers comparten la misma posicion Y (144)
+    BUNKER1_X       DW 0050h       ; X position of the left bunker in pixels (80)
+    BUNKER2_X       DW 00D0h       ; X position of the right bunker in pixels (208)
+    BUNKER_Y        DW 0090h       ; Both bunkers share the same Y position (144)
 
     ; Per-pixel destruction state arrays for each bunker
     ; Each byte maps 1:1 to a sprite pixel: 1 = alive (draw), 0 = destroyed (skip)
     ; 7 columns x 4 rows = 28 bytes per bunker
-    BUNKER1_STATE   DB 0,1,1,1,1,1,0   ; Estado fila 0 bunker 1 (1=vivo, 0=destruido)
-                    DB 1,1,1,1,1,1,1   ; Estado fila 1
-                    DB 1,1,1,1,1,1,1   ; Estado fila 2
-                    DB 1,1,0,0,0,1,1   ; Estado fila 3 (hueco central ya destruido)
+    BUNKER1_STATE   DB 0,1,1,1,1,1,0   ; Bunker 1 row 0 state (1=alive, 0=destroyed)
+                    DB 1,1,1,1,1,1,1   ; Row 1 state
+                    DB 1,1,1,1,1,1,1   ; Row 2 state
+                    DB 1,1,0,0,0,1,1   ; Row 3 state (center notch already destroyed)
 
     BUNKER2_STATE   DB 0,1,1,1,1,1,0   ; Row 0 state
                     DB 1,1,1,1,1,1,1   ; Row 1 state
@@ -141,53 +141,53 @@ DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a pa
     ; ========================
     ; ENEMY (INVADER) DATA
     ; ========================
-    ENEMY_ROWS      DW 0003h       ; Numero de filas de enemigos en la grilla (3)
-    ENEMY_COLS      DW 0006h       ; Numero de columnas de enemigos en la grilla (6)
-    ENEMY_COUNT     DW 0012h       ; Total de enemigos vivos = 3 * 6 = 18 (0x12)
+    ENEMY_ROWS      DW 0003h       ; Number of enemy rows in the grid (3)
+    ENEMY_COLS      DW 0006h       ; Number of enemy columns in the grid (6)
+    ENEMY_COUNT     DW 0012h       ; Total living enemies = 3 * 6 = 18 (0x12)
 
     ; ENEMY_DATA layout: 18 entries x 5 bytes each = 90 bytes total
     ; Each entry: [STATE:1 byte][X:2 bytes][Y:2 bytes]
     ;   STATE: 1 = alive, 0 = dead (destroyed by player bullet)
     ;   X, Y: current screen position of this enemy in pixels
     ; Initialized to all zeros here; INIT_ENEMIES fills correct values at startup
-    ENEMY_DATA      DB 90 DUP(00h) ; 90 bytes para 18 enemigos x 5 bytes; llenado por INIT_ENEMIES
+    ENEMY_DATA      DB 90 DUP(00h) ; 90 bytes for 18 enemies x 5 bytes; filled by INIT_ENEMIES
 
     ; Enemy sprite shape (5 columns x 3 rows):
     ;   . X . X .
     ;   X X X X X
     ;   X . X . X
-    ENEMY_SPRITE    DB 0,1,0,1,0   ; Fila 0: antenas del enemigo
-                    DB 1,1,1,1,1   ; Fila 1: cuerpo del enemigo
-                    DB 1,0,1,0,1   ; Fila 2: patas del enemigo
-    ENEMY_SPRITE_W  DW 0005h       ; Numero de columnas del sprite enemigo
-    ENEMY_SPRITE_H  DW 0003h       ; Numero de filas del sprite enemigo
-    ENEMY_SCALE     DW 0003h       ; Factor de escala: cada pixel del sprite = bloque 3x3
+    ENEMY_SPRITE    DB 0,1,0,1,0   ; Row 0: enemy antennae
+                    DB 1,1,1,1,1   ; Row 1: enemy body
+                    DB 1,0,1,0,1   ; Row 2: enemy legs
+    ENEMY_SPRITE_W  DW 0005h       ; Number of columns in the enemy sprite
+    ENEMY_SPRITE_H  DW 0003h       ; Number of rows in the enemy sprite
+    ENEMY_SCALE     DW 0003h       ; Scale factor: each sprite pixel = a 3x3 block
 
     ; Enemy horizontal movement
-    ENEMY_VEL_X     DW 0004h       ; Pixels que se mueve cada enemigo horizontalmente por paso
-    ENEMY_DIR       DB 01h         ; Direccion actual: 01h = derecha, FFh = izquierda
-    ENEMY_MOVE_CTR  DW 0000h       ; Ticks transcurridos desde el ultimo paso de movimiento
-    ENEMY_MOVE_FREQ DW 0006h       ; Un paso de movimiento ocurre cada 8 ticks (menor = mas rapido)
-    ENEMY_DROP_AMT  DW 0008h       ; Pixels que bajan los enemigos al invertir direccion
+    ENEMY_VEL_X     DW 0004h       ; Pixels each enemy moves horizontally per step
+    ENEMY_DIR       DB 01h         ; Current direction: 01h = right, FFh = left
+    ENEMY_MOVE_CTR  DW 0000h       ; Ticks elapsed since the last movement step
+    ENEMY_MOVE_FREQ DW 0006h       ; One movement step happens every 8 ticks (lower = faster)
+    ENEMY_DROP_AMT  DW 0008h       ; Pixels enemies drop when reversing direction
 
     ; Enemy shooting
-    ENEMY_SHOOT_CTR  DW 0000h      ; Ticks transcurridos desde el ultimo disparo enemigo
-    ENEMY_SHOOT_FREQ DW 001Eh      ; Los enemigos disparan cada 30 ticks (0x1E = 30)
+    ENEMY_SHOOT_CTR  DW 0000h      ; Ticks elapsed since the last enemy shot
+    ENEMY_SHOOT_FREQ DW 001Eh      ; Enemies fire every 30 ticks (0x1E = 30)
 
     ; Initial grid layout
-    ENEMY_START_X   DW 0020h       ; Posicion X inicial de la columna izquierda de enemigos (32)
-    ENEMY_START_Y   DW 0018h       ; Posicion Y inicial de la fila superior de enemigos (24)
-    ENEMY_SPACING_X DW 001Eh       ; Separacion horizontal entre centros de enemigos en pixels (30)
-    ENEMY_SPACING_Y DW 0012h       ; Separacion vertical entre centros de enemigos en pixels (18)
+    ENEMY_START_X   DW 0020h       ; Initial X position of the leftmost enemy column (32)
+    ENEMY_START_Y   DW 0018h       ; Initial Y position of the top enemy row (24)
+    ENEMY_SPACING_X DW 001Eh       ; Horizontal spacing between enemy centers in pixels (30)
+    ENEMY_SPACING_Y DW 0012h       ; Vertical spacing between enemy centers in pixels (18)
 
     ; ========================
     ; SOUND DATA
     ; ========================
     ; PC speaker sounds use PIT (Programmable Interval Timer) channel 2.
     ; Audible frequency = 1,193,180 Hz / divisor value.
-    SOUND_SHOOT_FREQ  DW 0A00h     ; Divisor PIT para sonido de disparo (~292 Hz, clic agudo)
-    SOUND_HIT_FREQ    DW 0300h     ; Divisor PIT para sonido de impacto (~977 Hz, pitido medio)
-    SOUND_GAMEOVER_F  DW 0100h     ; Divisor PIT para sonido de game over (~2929 Hz, tono agudo)
+    SOUND_SHOOT_FREQ  DW 0A00h     ; PIT divisor for shoot sound (~292 Hz, sharp click)
+    SOUND_HIT_FREQ    DW 0300h     ; PIT divisor for hit sound (~977 Hz, mid beep)
+    SOUND_GAMEOVER_F  DW 0100h     ; PIT divisor for game-over sound (~2929 Hz, high tone)
 
     ; ========================
     ; MUSIC DATA
@@ -207,9 +207,9 @@ DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a pa
                     DW 0800h, 0000h, 08E0h, 0800h, 0000h, 0720h   ; Phrase 5
                     DW 0FFFFh                                       ; End marker: jump back to start
 
-    MELODY_IDX      DW 0000h       ; Offset en bytes dentro de MELODY para la nota actual (pasos de 2)
-    MUSIC_TICK_CTR  DW 0000h       ; Ticks transcurridos desde el ultimo avance de nota
-    MUSIC_TICK_FREQ DW 0006h       ; Avanza a la siguiente nota cada 6 ticks de juego
+    MELODY_IDX      DW 0000h       ; Byte offset into MELODY for the current note (steps of 2)
+    MUSIC_TICK_CTR  DW 0000h       ; Ticks elapsed since the last note advance
+    MUSIC_TICK_FREQ DW 0006h       ; Advance to the next note every 6 game ticks
 
     ; Descending melody played once on the game over end screen (blocking)
     MELODY_OVER     DW 0660h, 0720h, 0800h, 08E0h, 09F0h, 0B20h   ; Descending A4 to C4
@@ -224,12 +224,12 @@ DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a pa
     ; DRAW_ENEMIES cannot use SP-relative addressing (illegal in 8086 MASM),
     ; so these named variables hold intermediate positions during enemy drawing.
     ; ========================
-    DE_ENEMY_X  DW 0000h           ; Posicion X base del enemigo que se esta dibujando
-    DE_ENEMY_Y  DW 0000h           ; Posicion Y base del enemigo que se esta dibujando
-    DE_BLOCK_X  DW 0000h           ; X del bloque escalado actual (col * escala + X_enemigo)
-    DE_BLOCK_Y  DW 0000h           ; Y del bloque escalado actual (fila * escala + Y_enemigo)
+    DE_ENEMY_X  DW 0000h           ; Base X position of the enemy currently being drawn
+    DE_ENEMY_Y  DW 0000h           ; Base Y position of the enemy currently being drawn
+    DE_BLOCK_X  DW 0000h           ; X of the current scaled block (col * scale + enemy_X)
+    DE_BLOCK_Y  DW 0000h           ; Y of the current scaled block (row * scale + enemy_Y)
 
-DATA ENDS                          ; Fin del segmento de datos
+DATA ENDS                          ; End of data segment
 
 ; ============================================================
 ; CODE SEGMENT - All executable procedures
