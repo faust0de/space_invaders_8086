@@ -9,56 +9,57 @@
 ; ============================================================
 ; STACK SEGMENT - Reserved memory for the call stack
 ; ============================================================
-STACK SEGMENT PARA STACK           ; Declara el segmento de pila, alineado a parrafo (16 bytes)
-    DB 128 DUP (' ')               ; Reserva 128 bytes para la pila, inicializados con espacios
-STACK ENDS                         ; Fin del segmento de pila
+
+STACK SEGMENT PARA STACK           ; Declares the stack segment, paragraph-aligned at 16 bytes
+    DB 128 DUP (' ')               ; Reserves 128 bytes for the stack, initialized with spaces
+STACK ENDS                         ; Ends the stack segment
 
 ; ============================================================
 ; DATA SEGMENT - All game variables and constants
 ; ============================================================
-DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a parrafo
+DATA SEGMENT PARA 'DATA'           ; Declares the data segment, paragraph-aligned
 
     ; --- Screen dimensions (CGA Mode 4: 320x200) ---
-    WINDOW_WIDTH    DW 0140h       ; Ancho de pantalla en pixels (0x140 = 320 decimal)
-    WINDOW_HEIGHT   DW 00C8h       ; Alto de pantalla en pixels (0xC8 = 200 decimal)
+    WINDOW_WIDTH    DW 0140h       ; Screen width in pixels (0x140 = 320 decimal)
+    WINDOW_HEIGHT   DW 00C8h       ; Screen height in pixels (0xC8 = 200 decimal)
 
     ; --- Game state flags ---
-    GAME_ACTIVE     DB 01h         ; Controla el bucle principal: 1 = juego activo, 0 = game over
-    GAME_WIN        DB 00h         ; Condicion de fin: 1 = jugador gano, 0 = jugador perdio
+    GAME_ACTIVE     DB 01h         ; Controls the main loop: 1 = game running, 0 = game over
+    GAME_WIN        DB 00h         ; End condition flag: 1 = player won, 0 = player lost
 
     ; --- Time control (technique from Pong tutorial) ---
     ; INT 21h/AH=2Ch returns DL = hundredths of second (0-99)
     ; We compare each frame to detect when the value changes (= new tick)
-    TIME_AUX        DB 00h         ; Ultimo valor de 1/100 seg visto; controla la velocidad del bucle
+    TIME_AUX        DB 00h         ; Stores the last 1/100 second value used to control game speed
 
     ; --- Score display ---
-    SCORE           DW 0000h       ; Puntaje numerico actual (aumenta +10 por cada enemigo eliminado)
-    SCORE_STR       DB '00000', 00h ; Cadena ASCII de 5 digitos para mostrar puntaje + terminador nulo
-    SCORE_X         DW 0008h       ; Columna de texto donde se dibuja el puntaje
-    SCORE_Y         DW 0002h       ; Fila de texto donde se dibuja el puntaje
+    SCORE           DW 0000h       ; Current numeric score, increased by 10 for each destroyed enemy
+    SCORE_STR       DB '00000', 00h ; Five-digit ASCII score string with null terminator
+    SCORE_X         DW 0008h       ; Text column where the score is drawn
+    SCORE_Y         DW 0002h       ; Text row where the score is drawn
 
     ; --- End screen messages (null-terminated ASCII strings) ---
-    MSG_GAMEOVER    DB 'GAME OVER', 00h            ; Mensaje cuando el jugador pierde
-    MSG_WIN         DB 'YOU WIN!', 00h             ; Mensaje cuando todos los enemigos son eliminados
-    MSG_SCORE       DB 'SCORE:', 00h               ; Etiqueta que aparece antes del puntaje final
-    MSG_RESTART     DB 'R=RESTART  Q=QUIT', 00h    ; Instrucciones mostradas en la pantalla final
+    MSG_GAMEOVER    DB 'GAME OVER', 00h            ; Message shown when the player loses
+    MSG_WIN         DB 'YOU WIN!', 00h             ; Message shown when all enemies are destroyed
+    MSG_SCORE       DB 'SCORE:', 00h               ; Label displayed before the final score
+    MSG_RESTART     DB 'R=RESTART  Q=QUIT', 00h    ; Instructions shown on the end screen
 
     ; --- CGA palette 1 color indices (Mode 04h, palette 1: black/cyan/magenta/white) ---
-    COLOR_BLACK     EQU 00h        ; Indice 0 = negro (fondo de pantalla)
-    COLOR_CYAN      EQU 01h        ; Indice 1 = cian (color de los bunkers)
-    COLOR_MAGENTA   EQU 02h        ; Indice 2 = magenta (color de los enemigos)
-    COLOR_WHITE     EQU 03h        ; Indice 3 = blanco (jugador y balas)
+    COLOR_BLACK     EQU 00h        ; Color index 0 = black, used as the background color
+    COLOR_CYAN      EQU 01h        ; Color index 1 = cyan, used for the bunkers
+    COLOR_MAGENTA   EQU 02h        ; Color index 2 = magenta, used for enemies and enemy bullets
+    COLOR_WHITE     EQU 03h        ; Color index 3 = white, used for the player and player bullets
 
     ; --- Screen edge margin ---
-    WINDOW_BOUNDS   DW 0006h       ; Margen minimo en pixels desde el borde izquierdo/derecho
+    WINDOW_BOUNDS   DW 0006h       ; Minimum pixel margin from the left and right screen edges
 
     ; ========================
     ; PLAYER DATA
     ; ========================
-    PLAYER_X        DW 0098h       ; Posicion horizontal del jugador en pixels (152 = centro de pantalla)
-    PLAYER_Y        DW 00B0h       ; Posicion vertical del jugador en pixels (176 = cerca del fondo)
-    PLAYER_COLOR    DB 03h         ; Color del jugador = blanco (indice CGA 3)
-    PLAYER_VELOCITY DW 0004h       ; Pixels que se mueve el jugador por tecla presionada
+    PLAYER_X        DW 0098h       ; Player horizontal position in pixels (152, near screen center)
+    PLAYER_Y        DW 00B0h       ; Player vertical position in pixels (176, near the bottom)
+    PLAYER_COLOR    DB 03h         ; Player color = white, CGA color index 3
+    PLAYER_VELOCITY DW 0004h       ; Number of pixels the player moves per key press
 
     ; Player sprite definition (5 columns x 3 rows):
     ; 0 = transparent pixel (not drawn), 1 = solid pixel (drawn in PLAYER_COLOR)
@@ -66,42 +67,42 @@ DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a pa
     ;   Row 0:  . . X . .
     ;   Row 1:  . X X X .
     ;   Row 2:  X X X X X
-    PLAYER_SPRITE   DB 0,0,1,0,0   ; Fila 0: punta del canon (parte superior del tanque)
+    PLAYER_SPRITE   DB 0,0,1,0,0   ; Row 0: cannon tip or upper part of the tank
                     DB 0,1,1,1,0   ; Row 1: turret body
-                    DB 1,1,1,1,1   ; Fila 2: base del tanque (ancho completo)
-    SPRITE_WIDTH    DW 0005h       ; Numero de columnas del sprite del jugador
-    SPRITE_HEIGHT   DW 0003h       ; Numero de filas del sprite del jugador
-    SPRITE_SCALE    DW 0004h       ; Factor de escala: cada pixel del sprite = bloque 4x4 en pantalla
+                    DB 1,1,1,1,1   ; Row 2: full-width tank base
+    SPRITE_WIDTH    DW 0005h       ; Number of columns in the player sprite
+    SPRITE_HEIGHT   DW 0003h       ; Number of rows in the player sprite
+    SPRITE_SCALE    DW 0004h       ; Scale factor: each sprite pixel becomes a 4x4 screen block
 
     ; ========================
     ; PLAYER BULLET DATA
     ; ========================
-    BULLET_X        DW 0000h       ; Posicion X actual de la bala del jugador
-    BULLET_Y        DW 0000h       ; Posicion Y actual de la bala del jugador
-    BULLET_ACTIVE   DB 00h         ; Estado de la bala: 0 = inactiva, 1 = en vuelo
-    BULLET_VELOCITY DW 0006h       ; Pixels que sube la bala por tick de juego
-    BULLET_COLOR    DB 03h         ; Color de la bala = blanco (indice CGA 3)
+    BULLET_X        DW 0000h       ; Current X position of the player bullet
+    BULLET_Y        DW 0000h       ; Current Y position of the player bullet
+    BULLET_ACTIVE   DB 00h         ; Bullet state: 0 = inactive, 1 = flying
+    BULLET_VELOCITY DW 0006h       ; Number of pixels the player bullet moves upward per game tick
+    BULLET_COLOR    DB 03h         ; Player bullet color = white, CGA color index 3
 
     ; Bullet sprite (3 columns x 4 rows):
     ;   . X .
     ;   . X .
     ;   . X .
     ;   X X X
-    BULLET_SPRITE   DB 0,1,0       ; Fila 0: eje delgado de la bala
-                    DB 0,1,0       ; Fila 1: eje delgado
-                    DB 0,1,0       ; Fila 2: eje delgado
-                    DB 1,1,1       ; Fila 3: base de la bala
-    BULLET_SPRITE_WIDTH  DW 0003h  ; Numero de columnas del sprite de bala
-    BULLET_SPRITE_HEIGHT DW 0004h  ; Numero de filas del sprite de bala
+    BULLET_SPRITE   DB 0,1,0       ; Row 0: thin bullet shaft
+                    DB 0,1,0       ; Row 1: thin bullet shaft
+                    DB 0,1,0       ; Row 2: thin bullet shaft
+                    DB 1,1,1       ; Row 3: bullet base
+    BULLET_SPRITE_WIDTH  DW 0003h  ; Number of columns in the bullet sprite
+    BULLET_SPRITE_HEIGHT DW 0004h  ; Number of rows in the bullet sprite
 
     ; ========================
     ; ENEMY BULLET DATA
     ; ========================
-    EBULLET_X       DW 0000h       ; Posicion X actual de la bala enemiga
-    EBULLET_Y       DW 0000h       ; Posicion Y actual de la bala enemiga
-    EBULLET_ACTIVE  DB 00h         ; Estado: 0 = inactiva, 1 = bala enemiga en vuelo
-    EBULLET_VELOCITY DW 0003h      ; Pixels que baja la bala enemiga por tick
-    EBULLET_COLOR   DB 02h         ; Color de la bala enemiga = magenta (indice CGA 2)
+    EBULLET_X       DW 0000h       ; Current X position of the enemy bullet
+    EBULLET_Y       DW 0000h       ; Current Y position of the enemy bullet
+    EBULLET_ACTIVE  DB 00h         ; Enemy bullet state: 0 = inactive, 1 = flying
+    EBULLET_VELOCITY DW 0003h      ; Number of pixels the enemy bullet moves downward per game tick
+    EBULLET_COLOR   DB 02h         ; Enemy bullet color = magenta, CGA color index 2
 
     ; ========================
     ; BUNKER DATA
@@ -111,154 +112,152 @@ DATA SEGMENT PARA 'DATA'           ; Declara el segmento de datos, alineado a pa
     ;   X X X X X X X
     ;   X X X X X X X
     ;   X X . . . X X   <- notch at bottom center (entrance for player)
-    BUNKER_SPRITE   DB 0,1,1,1,1,1,0   ; Fila 0: parte superior redondeada del bunker
-                    DB 1,1,1,1,1,1,1   ; Fila 1: ancho completo
-                    DB 1,1,1,1,1,1,1   ; Fila 2: ancho completo
-                    DB 1,1,0,0,0,1,1   ; Fila 3: base con hueco central para el jugador
-    BUNKER_SPRITE_WIDTH  DW 0007h  ; Numero de columnas del sprite del bunker (7 pixels)
-    BUNKER_SPRITE_HEIGHT DW 0004h  ; Numero de filas del sprite del bunker (4 pixels)
-    BUNKER_SCALE         DW 0003h  ; Factor de escala: cada pixel del sprite = bloque 3x3
-    BUNKER_SCALE_BYTE    DB 03h    ; Misma escala pero en BYTE (necesario para la instruccion DIV BL)
+    BUNKER_SPRITE   DB 0,1,1,1,1,1,0   ; Row 0: rounded upper part of the bunker
+                    DB 1,1,1,1,1,1,1   ; Row 1: full-width bunker row
+                    DB 1,1,1,1,1,1,1   ; Row 2: full-width bunker row
+                    DB 1,1,0,0,0,1,1   ; Row 3: lower row with a central opening
+    BUNKER_SPRITE_WIDTH  DW 0007h  ; Number of columns in the bunker sprite
+    BUNKER_SPRITE_HEIGHT DW 0004h  ; Number of rows in the bunker sprite
+    BUNKER_SCALE         DW 0003h  ; Scale factor: each bunker sprite pixel becomes a 3x3 block
+    BUNKER_SCALE_BYTE    DB 03h    ; Same scale value stored as a byte for DIV BL operations
 
     ; Screen positions of the two bunkers
-    BUNKER1_X       DW 0050h       ; Posicion X del bunker izquierdo en pixels (80)
-    BUNKER2_X       DW 00D0h       ; Posicion X del bunker derecho en pixels (208)
-    BUNKER_Y        DW 0090h       ; Ambos bunkers comparten la misma posicion Y (144)
+    BUNKER1_X       DW 0050h       ; X position of the left bunker in pixels (80 decimal)
+    BUNKER2_X       DW 00D0h       ; X position of the right bunker in pixels (208 decimal)
+    BUNKER_Y        DW 0090h       ; Shared Y position for both bunkers in pixels (144 decimal)
 
     ; Per-pixel destruction state arrays for each bunker
     ; Each byte maps 1:1 to a sprite pixel: 1 = alive (draw), 0 = destroyed (skip)
     ; 7 columns x 4 rows = 28 bytes per bunker
-    BUNKER1_STATE   DB 0,1,1,1,1,1,0   ; Estado fila 0 bunker 1 (1=vivo, 0=destruido)
-                    DB 1,1,1,1,1,1,1   ; Estado fila 1
-                    DB 1,1,1,1,1,1,1   ; Estado fila 2
-                    DB 1,1,0,0,0,1,1   ; Estado fila 3 (hueco central ya destruido)
+    BUNKER1_STATE   DB 0,1,1,1,1,1,0   ; Bunker 1 row 0 state: 1 = alive, 0 = destroyed/empty
+                    DB 1,1,1,1,1,1,1   ; Bunker 1 row 1 state
+                    DB 1,1,1,1,1,1,1   ; Bunker 1 row 2 state
+                    DB 1,1,0,0,0,1,1   ; Bunker 1 row 3 state, with central opening
 
-    BUNKER2_STATE   DB 0,1,1,1,1,1,0   ; Row 0 state
-                    DB 1,1,1,1,1,1,1   ; Row 1 state
-                    DB 1,1,1,1,1,1,1   ; Row 2 state
-                    DB 1,1,0,0,0,1,1   ; Row 3 state
+    BUNKER2_STATE   DB 0,1,1,1,1,1,0   ; Bunker 2 row 0 state: 1 = alive, 0 = destroyed/empty
+                    DB 1,1,1,1,1,1,1   ; Bunker 2 row 1 state
+                    DB 1,1,1,1,1,1,1   ; Bunker 2 row 2 state
+                    DB 1,1,0,0,0,1,1   ; Bunker 2 row 3 state, with central opening
 
     ; ========================
     ; ENEMY (INVADER) DATA
     ; ========================
-    ENEMY_ROWS      DW 0003h       ; Numero de filas de enemigos en la grilla (3)
-    ENEMY_COLS      DW 0006h       ; Numero de columnas de enemigos en la grilla (6)
-    ENEMY_COUNT     DW 0012h       ; Total de enemigos vivos = 3 * 6 = 18 (0x12)
+    ENEMY_ROWS      DW 0003h       ; Number of enemy rows in the grid
+    ENEMY_COLS      DW 0006h       ; Number of enemy columns in the grid
+    ENEMY_COUNT     DW 0012h       ; Number of living enemies: 3 * 6 = 18 decimal = 0x12
 
     ; ENEMY_DATA layout: 18 entries x 5 bytes each = 90 bytes total
     ; Each entry: [STATE:1 byte][X:2 bytes][Y:2 bytes]
     ;   STATE: 1 = alive, 0 = dead (destroyed by player bullet)
     ;   X, Y: current screen position of this enemy in pixels
     ; Initialized to all zeros here; INIT_ENEMIES fills correct values at startup
-    ENEMY_DATA      DB 90 DUP(00h) ; 90 bytes para 18 enemigos x 5 bytes; llenado por INIT_ENEMIES
+    ENEMY_DATA      DB 90 DUP(00h) ; Reserves 90 bytes for 18 enemies, filled later by INIT_ENEMIES
 
     ; Enemy sprite shape (5 columns x 3 rows):
     ;   . X . X .
     ;   X X X X X
     ;   X . X . X
-    ENEMY_SPRITE    DB 0,1,0,1,0   ; Fila 0: antenas del enemigo
-                    DB 1,1,1,1,1   ; Fila 1: cuerpo del enemigo
-                    DB 1,0,1,0,1   ; Fila 2: patas del enemigo
-    ENEMY_SPRITE_W  DW 0005h       ; Numero de columnas del sprite enemigo
-    ENEMY_SPRITE_H  DW 0003h       ; Numero de filas del sprite enemigo
-    ENEMY_SCALE     DW 0003h       ; Factor de escala: cada pixel del sprite = bloque 3x3
+    ENEMY_SPRITE    DB 0,1,0,1,0   ; Row 0: enemy antennas
+                    DB 1,1,1,1,1   ; Row 1: enemy body
+                    DB 1,0,1,0,1   ; Row 2: enemy legs
+    ENEMY_SPRITE_W  DW 0005h       ; Number of columns in the enemy sprite
+    ENEMY_SPRITE_H  DW 0003h       ; Number of rows in the enemy sprite
+    ENEMY_SCALE     DW 0003h       ; Scale factor: each enemy sprite pixel becomes a 3x3 block
 
     ; Enemy horizontal movement
-    ENEMY_VEL_X     DW 0004h       ; Pixels que se mueve cada enemigo horizontalmente por paso
-    ENEMY_DIR       DB 01h         ; Direccion actual: 01h = derecha, FFh = izquierda
-    ENEMY_MOVE_CTR  DW 0000h       ; Ticks transcurridos desde el ultimo paso de movimiento
-    ENEMY_MOVE_FREQ DW 0006h       ; Un paso de movimiento ocurre cada 8 ticks (menor = mas rapido)
-    ENEMY_DROP_AMT  DW 0008h       ; Pixels que bajan los enemigos al invertir direccion
+    ENEMY_VEL_X     DW 0004h       ; Number of pixels each enemy moves horizontally per step
+    ENEMY_DIR       DB 01h         ; Current enemy direction: 01h = right, FFh = left
+    ENEMY_MOVE_CTR  DW 0000h       ; Tick counter since the last enemy movement step
+    ENEMY_MOVE_FREQ DW 0006h       ; Enemy movement frequency: move once every 6 game ticks
+    ENEMY_DROP_AMT  DW 0008h       ; Number of pixels enemies move downward when direction changes
 
     ; Enemy shooting
-    ENEMY_SHOOT_CTR  DW 0000h      ; Ticks transcurridos desde el ultimo disparo enemigo
-    ENEMY_SHOOT_FREQ DW 001Eh      ; Los enemigos disparan cada 30 ticks (0x1E = 30)
+    ENEMY_SHOOT_CTR  DW 0000h      ; Tick counter since the last enemy shot
+    ENEMY_SHOOT_FREQ DW 001Eh      ; Enemy shooting frequency: shoot every 30 ticks (0x1E = 30)
 
     ; Initial grid layout
-    ENEMY_START_X   DW 0020h       ; Posicion X inicial de la columna izquierda de enemigos (32)
-    ENEMY_START_Y   DW 0018h       ; Posicion Y inicial de la fila superior de enemigos (24)
-    ENEMY_SPACING_X DW 001Eh       ; Separacion horizontal entre centros de enemigos en pixels (30)
-    ENEMY_SPACING_Y DW 0012h       ; Separacion vertical entre centros de enemigos en pixels (18)
+    ENEMY_START_X   DW 0020h       ; Initial X position of the leftmost enemy column (32 decimal)
+    ENEMY_START_Y   DW 0018h       ; Initial Y position of the top enemy row (24 decimal)
+    ENEMY_SPACING_X DW 001Eh       ; Horizontal spacing between enemies in pixels (30 decimal)
+    ENEMY_SPACING_Y DW 0012h       ; Vertical spacing between enemies in pixels (18 decimal)
 
     ; ========================
     ; SOUND DATA
     ; ========================
     ; PC speaker sounds use PIT (Programmable Interval Timer) channel 2.
     ; Audible frequency = 1,193,180 Hz / divisor value.
-    SOUND_SHOOT_FREQ  DW 0A00h     ; Divisor PIT para sonido de disparo (~292 Hz, clic agudo)
-    SOUND_HIT_FREQ    DW 0300h     ; Divisor PIT para sonido de impacto (~977 Hz, pitido medio)
-    SOUND_GAMEOVER_F  DW 0100h     ; Divisor PIT para sonido de game over (~2929 Hz, tono agudo)
+    SOUND_SHOOT_FREQ  DW 0A00h     ; PIT divisor used for the shooting sound effect
+    SOUND_HIT_FREQ    DW 0300h     ; PIT divisor used for the enemy hit sound effect
+    SOUND_GAMEOVER_F  DW 0100h     ; PIT divisor used for the game-over sound effect
 
     ; ========================
     ; MUSIC DATA
+    ; ========================
     ; Background melody played one note per MUSIC_TICK_FREQ game ticks (non-blocking).
     ; Each value is a PIT divisor: audible frequency = 1,193,180 / divisor.
     ; Special values: 0000h = rest (silence for one step), 0FFFFh = end marker (loop back).
     ;
     ; Note reference:
-    ;   0D60h ~ A3 (220 Hz)    0B20h ~ C4 / middle C (261 Hz)    09F0h ~ D4 (294 Hz)
-    ;   08E0h ~ E4 (330 Hz)    0800h ~ F#4 (370 Hz)              0720h ~ G#4 (415 Hz)
-    ;   0660h ~ A4 (440 Hz)
+    ;   These values are approximate arcade tones generated through PIT divisors.
     ; ========================
-    MELODY          DW 0B20h, 0B20h, 0000h, 0B20h, 0000h, 08E0h   ; Phrase 1
-                    DW 0B20h, 0000h, 0800h, 0B20h, 0720h, 0000h   ; Phrase 2
-                    DW 0660h, 0000h, 0660h, 0000h, 0660h, 0000h   ; Phrase 3
-                    DW 08E0h, 0000h, 0000h, 0000h, 08E0h, 0000h   ; Phrase 4
-                    DW 0800h, 0000h, 08E0h, 0800h, 0000h, 0720h   ; Phrase 5
-                    DW 0FFFFh                                       ; End marker: jump back to start
+    MELODY          DW 0B20h, 0B20h, 0000h, 0B20h, 0000h, 08E0h   ; Background melody phrase 1
+                    DW 0B20h, 0000h, 0800h, 0B20h, 0720h, 0000h   ; Background melody phrase 2
+                    DW 0660h, 0000h, 0660h, 0000h, 0660h, 0000h   ; Background melody phrase 3
+                    DW 08E0h, 0000h, 0000h, 0000h, 08E0h, 0000h   ; Background melody phrase 4
+                    DW 0800h, 0000h, 08E0h, 0800h, 0000h, 0720h   ; Background melody phrase 5
+                    DW 0FFFFh                                       ; End marker: loop back to the start
 
-    MELODY_IDX      DW 0000h       ; Offset en bytes dentro de MELODY para la nota actual (pasos de 2)
-    MUSIC_TICK_CTR  DW 0000h       ; Ticks transcurridos desde el ultimo avance de nota
-    MUSIC_TICK_FREQ DW 0006h       ; Avanza a la siguiente nota cada 6 ticks de juego
+    MELODY_IDX      DW 0000h       ; Byte offset inside MELODY for the current note, advanced by 2
+    MUSIC_TICK_CTR  DW 0000h       ; Tick counter since the last melody note advance
+    MUSIC_TICK_FREQ DW 0006h       ; Advances to the next melody note every 6 game ticks
 
     ; Descending melody played once on the game over end screen (blocking)
-    MELODY_OVER     DW 0660h, 0720h, 0800h, 08E0h, 09F0h, 0B20h   ; Descending A4 to C4
-                    DW 0D60h, 0000h, 0FFFFh                         ; End on A3 then silence
+    MELODY_OVER     DW 0660h, 0720h, 0800h, 08E0h, 09F0h, 0B20h   ; Descending game-over melody
+                    DW 0D60h, 0000h, 0FFFFh                         ; Final tone, silence, and end marker
 
     ; Ascending fanfare played once on the win end screen (blocking)
-    MELODY_WIN      DW 0B20h, 09F0h, 08E0h, 0800h, 0720h, 0660h   ; Ascending C4 to A4
-                    DW 0660h, 0660h, 0000h, 0FFFFh                  ; Repeat top note then silence
+    MELODY_WIN      DW 0B20h, 09F0h, 08E0h, 0800h, 0720h, 0660h   ; Ascending win fanfare melody
+                    DW 0660h, 0660h, 0000h, 0FFFFh                  ; Repeated top tone, silence, and end marker
 
     ; ========================
     ; DRAW TEMPORARY VARIABLES
     ; DRAW_ENEMIES cannot use SP-relative addressing (illegal in 8086 MASM),
     ; so these named variables hold intermediate positions during enemy drawing.
     ; ========================
-    DE_ENEMY_X  DW 0000h           ; Posicion X base del enemigo que se esta dibujando
-    DE_ENEMY_Y  DW 0000h           ; Posicion Y base del enemigo que se esta dibujando
-    DE_BLOCK_X  DW 0000h           ; X del bloque escalado actual (col * escala + X_enemigo)
-    DE_BLOCK_Y  DW 0000h           ; Y del bloque escalado actual (fila * escala + Y_enemigo)
+    DE_ENEMY_X  DW 0000h           ; Temporary base X position of the enemy currently being drawn
+    DE_ENEMY_Y  DW 0000h           ; Temporary base Y position of the enemy currently being drawn
+    DE_BLOCK_X  DW 0000h           ; Temporary X position of the current scaled enemy block
+    DE_BLOCK_Y  DW 0000h           ; Temporary Y position of the current scaled enemy block
 
-DATA ENDS                          ; Fin del segmento de datos
-
+DATA ENDS                          ; Ends the data segment
 ; ============================================================
 ; CODE SEGMENT - All executable procedures
 ; ============================================================
-CODE SEGMENT PARA 'CODE'           ; Declare code segment, aligned to paragraph
+CODE SEGMENT PARA 'CODE'           ; Declares the code segment, paragraph-aligned
 
-MAIN PROC FAR                      ; FAR procedure: callable across segments (required for .EXE)
-    ASSUME CS:CODE, DS:DATA, SS:STACK  ; Tell assembler which segment register maps to which segment
+MAIN PROC FAR                      ; Declares MAIN as a FAR procedure, required for .EXE programs
+    ASSUME CS:CODE, DS:DATA, SS:STACK  ; Tells the assembler which segment registers correspond to each segment
 
-    PUSH DS                        ; Save original DS on stack (required by DOS .EXE program format)
-    SUB  AX, AX                    ; AX = 0 (clear AX; SUB reg,reg is faster than MOV reg,0)
-    PUSH AX                        ; Push 0 as return address so RET at end returns cleanly to DOS
-    MOV  AX, DATA                  ; AX = segment address of DATA segment
-    MOV  DS, AX                    ; DS now points to our DATA segment (required before using variables)
+    PUSH DS                        ; Saves the original DS value on the stack
+    SUB  AX, AX                    ; Clears AX by subtracting it from itself, so AX = 0
+    PUSH AX                        ; Pushes 0 onto the stack as a return segment for clean program termination
+    MOV  AX, DATA                  ; Loads the segment address of DATA into AX
+    MOV  DS, AX                    ; Copies AX into DS so variables in DATA can be accessed correctly
 
     ; --- Set CGA graphics mode 4 (320x200, 4 colors) ---
     ; Technique from Pong tutorial: INT 10h function 00h sets the video mode.
-    MOV AH, 00h                    ; INT 10h function 00h = Set Video Mode
-    MOV AL, 04h                    ; Mode 04h = CGA 320x200, 4-color graphics
-    INT 10h                        ; Execute BIOS video interrupt to switch to graphics mode
+    MOV AH, 00h                    ; Selects INT 10h function 00h, which sets the video mode
+    MOV AL, 04h                    ; Selects video mode 04h: CGA 320x200 with 4 colors
+    INT 10h                        ; Calls BIOS video interrupt to apply the selected graphics mode
 
     ; --- Select CGA palette 1 (black / cyan / magenta / white) ---
-    MOV AH, 0Bh                    ; INT 10h function 0Bh = Set Color Palette
-    MOV BH, 01h                    ; BH=1: select a CGA color palette (not background color)
-    MOV BL, 01h                    ; BL=1: choose palette 1 (cyan/magenta/white)
-    INT 10h                        ; Execute palette selection
+    MOV AH, 0Bh                    ; Selects INT 10h function 0Bh, used for color palette configuration
+    MOV BH, 01h                    ; BH = 1 means the function will select a CGA palette
+    MOV BL, 01h                    ; BL = 1 selects CGA palette 1: cyan, magenta, and white
+    INT 10h                        ; Calls BIOS video interrupt to apply the palette selection
 
     ; --- Initialize enemy grid positions and states ---
-    CALL INIT_ENEMIES              ; Fill ENEMY_DATA array with starting positions
+    CALL INIT_ENEMIES              ; Calls the procedure that fills ENEMY_DATA with initial enemy states and positions
 
     ; ============================================================
     ; MAIN GAME LOOP
@@ -267,50 +266,50 @@ MAIN PROC FAR                      ; FAR procedure: callable across segments (re
     ; giving a consistent frame rate independent of CPU speed.
     ; ============================================================
 GAME_LOOP:
-    CMP GAME_ACTIVE, 00h           ; Is the game over? (GAME_ACTIVE set to 0 on loss or win)
-    JE  SHOW_END_SCREEN            ; Yes: jump to end screen
+    CMP GAME_ACTIVE, 00h           ; Checks if the game is inactive, meaning win or game over
+    JE  SHOW_END_SCREEN            ; If GAME_ACTIVE is 0, jump to the end screen
 
     ; --- Wait for next 1/100s tick (time control from Pong tutorial) ---
-    MOV AH, 2Ch                    ; INT 21h function 2Ch = Get System Time
-    INT 21h                        ; Returns: CH=hours CL=minutes DH=seconds DL=1/100 seconds
-    CMP DL, TIME_AUX               ; Is current 1/100s value the same as last frame?
-    JE  GAME_LOOP                  ; Yes: loop again (busy-wait until tick changes)
-    MOV TIME_AUX, DL               ; No: save new tick value and proceed with this frame
+    MOV AH, 2Ch                    ; Selects INT 21h function 2Ch, which reads the system time
+    INT 21h                        ; Calls DOS interrupt; DL receives hundredths of a second
+    CMP DL, TIME_AUX               ; Compares current time tick with the last stored tick
+    JE  GAME_LOOP                  ; If the tick has not changed, wait by looping again
+    MOV TIME_AUX, DL               ; Stores the new time tick to mark the current frame
 
     ; --- Clear screen: erase previous frame before drawing new one ---
-    CALL CLEAR_SCREEN              ; Fill display with black using INT 10h scroll function
+    CALL CLEAR_SCREEN              ; Clears the screen before drawing the next frame
 
     ; --- Process keyboard input and move player ---
-    CALL MOVE_PLAYER               ; Read keyboard buffer; move player or fire bullet
+    CALL MOVE_PLAYER               ; Handles keyboard input for movement and shooting
 
     ; --- Update positions of all moving objects ---
-    CALL MOVE_BULLET               ; Move player bullet upward one step
-    CALL MOVE_EBULLET              ; Move enemy bullet downward; trigger new shot if needed
-    CALL MOVE_ENEMIES              ; Move enemy grid left/right; drop when wall is reached
+    CALL MOVE_BULLET               ; Updates the player bullet position if it is active
+    CALL MOVE_EBULLET              ; Updates the enemy bullet or creates a new one when needed
+    CALL MOVE_ENEMIES              ; Moves the enemy grid horizontally and drops it when it hits a wall
 
     ; --- Collision detection (all checks each frame) ---
-    CALL CHECK_BULLET_BUNKER_COLLISION    ; Player bullet hits bunker -> destroy pixel
-    CALL CHECK_BULLET_ENEMY_COLLISION     ; Player bullet hits enemy  -> kill enemy, add score
-    CALL CHECK_EBULLET_BUNKER_COLLISION   ; Enemy bullet hits bunker  -> destroy pixel
-    CALL CHECK_EBULLET_PLAYER_COLLISION   ; Enemy bullet hits player  -> game over
-    CALL CHECK_ENEMIES_REACHED_BOTTOM     ; Enemy reaches player row  -> game over
+    CALL CHECK_BULLET_BUNKER_COLLISION    ; Checks if the player bullet hits a bunker pixel
+    CALL CHECK_BULLET_ENEMY_COLLISION     ; Checks if the player bullet hits an enemy
+    CALL CHECK_EBULLET_BUNKER_COLLISION   ; Checks if the enemy bullet hits a bunker pixel
+    CALL CHECK_EBULLET_PLAYER_COLLISION   ; Checks if the enemy bullet hits the player
+    CALL CHECK_ENEMIES_REACHED_BOTTOM     ; Checks if any enemy has reached the player area
 
     ; --- Draw all visible game objects ---
-    CALL DRAW_BUNKERS              ; Draw both bunkers (only alive pixels)
-    CALL DRAW_ENEMIES              ; Draw all alive enemies
-    CALL DRAW_PLAYER               ; Draw the player tank sprite
-    CALL DRAW_BULLET               ; Draw player bullet if active
-    CALL DRAW_EBULLET              ; Draw enemy bullet if active
+    CALL DRAW_BUNKERS              ; Draws both bunkers using their current destruction state
+    CALL DRAW_ENEMIES              ; Draws all enemies that are still alive
+    CALL DRAW_PLAYER               ; Draws the player tank sprite
+    CALL DRAW_BULLET               ; Draws the player bullet if it is active
+    CALL DRAW_EBULLET              ; Draws the enemy bullet if it is active
 
     ; --- Draw score in top-left area ---
-    MOV DH, BYTE PTR SCORE_Y      ; DH = row for cursor (text row units, from SCORE_Y variable)
-    MOV DL, BYTE PTR SCORE_X      ; DL = col for cursor (text col units, from SCORE_X variable)
-    CALL DRAW_SCORE                ; Convert SCORE to ASCII and display at (DH, DL)
+    MOV DH, BYTE PTR SCORE_Y       ; Loads the text row where the score will be displayed
+    MOV DL, BYTE PTR SCORE_X       ; Loads the text column where the score will be displayed
+    CALL DRAW_SCORE                ; Converts the score to ASCII and draws it at DH:DL
 
     ; --- Advance background music by one step ---
-    CALL PLAY_MUSIC_TICK           ; Play or silence speaker based on melody position
+    CALL PLAY_MUSIC_TICK           ; Advances the background melody without stopping the game loop
 
-    JMP GAME_LOOP                  ; Repeat forever until GAME_ACTIVE = 0
+    JMP GAME_LOOP                  ; Repeats the main game loop while the game remains active
 
     ; ============================================================
     ; END SCREEN
@@ -318,75 +317,75 @@ GAME_LOOP:
     ; Displays result message, plays end melody, waits for R or Q.
     ; ============================================================
 SHOW_END_SCREEN:
-    CALL STOP_SOUND                ; Silence speaker immediately (stop any looping music)
-    CALL CLEAR_SCREEN              ; Blank the screen before drawing end screen text
+    CALL STOP_SOUND                ; Stops any sound that may still be playing
+    CALL CLEAR_SCREEN              ; Clears the screen before drawing the end screen
 
-    CMP GAME_WIN, 01h              ; Did the player win?
-    JE  SHOW_WIN_MSG               ; Yes: show win message
+    CMP GAME_WIN, 01h              ; Checks if the game ended with a player victory
+    JE  SHOW_WIN_MSG               ; If GAME_WIN is 1, jump to the win message
 
     ; --- Game Over path ---
-    MOV DH, 0Ch                    ; Text row 12 (vertical center of 25-row text grid)
-    MOV DL, 0Ah                    ; Text col 10 (roughly centered for "GAME OVER")
-    LEA SI, MSG_GAMEOVER           ; SI = address of "GAME OVER" string
-    CALL DRAW_STRING               ; Draw the string at (DH, DL)
+    MOV DH, 0Ch                    ; Sets the text row for the GAME OVER message
+    MOV DL, 0Ah                    ; Sets the text column for the GAME OVER message
+    LEA SI, MSG_GAMEOVER           ; Loads the address of the GAME OVER string into SI
+    CALL DRAW_STRING               ; Draws the GAME OVER message on screen
 
-    LEA SI, MELODY_OVER            ; SI = address of descending game-over melody
-    CALL PLAY_MELODY               ; Play entire melody (blocking: waits until done)
-    JMP SHOW_RESTART_PROMPT        ; Skip win message, go to prompt
+    LEA SI, MELODY_OVER            ; Loads the address of the game-over melody into SI
+    CALL PLAY_MELODY               ; Plays the full game-over melody in a blocking way
+    JMP SHOW_RESTART_PROMPT        ; Skips the win section and jumps to the restart prompt
 
 SHOW_WIN_MSG:
-    MOV DH, 0Ch                    ; Text row 12
-    MOV DL, 0Bh                    ; Text col 11 (roughly centered for "YOU WIN!")
-    LEA SI, MSG_WIN                ; SI = address of "YOU WIN!" string
-    CALL DRAW_STRING               ; Draw the string at (DH, DL)
+    MOV DH, 0Ch                    ; Sets the text row for the YOU WIN message
+    MOV DL, 0Bh                    ; Sets the text column for the YOU WIN message
+    LEA SI, MSG_WIN                ; Loads the address of the YOU WIN string into SI
+    CALL DRAW_STRING               ; Draws the YOU WIN message on screen
 
-    LEA SI, MELODY_WIN             ; SI = address of ascending win fanfare melody
-    CALL PLAY_MELODY               ; Play entire melody (blocking)
+    LEA SI, MELODY_WIN             ; Loads the address of the victory melody into SI
+    CALL PLAY_MELODY               ; Plays the full win melody in a blocking way
 
 SHOW_RESTART_PROMPT:
-    ; Mostrar etiqueta "SCORE:" y los digitos en la misma fila, centrados
-    ; "SCORE:" = 6 chars + espacio + 5 digitos = 12 chars en total
-    ; Centrado en 40 columnas: (40 - 12) / 2 = col 14
-    MOV DH, 0Eh                    ; Fila de texto 14
-    MOV DL, 0Eh                    ; Columna 14: inicio de "SCORE:"
-    LEA SI, MSG_SCORE
-    CALL DRAW_STRING               ; Dibuja "SCORE:" en (14, 14)
+    ; Shows the "SCORE:" label and the score digits on the same centered row
+    ; "SCORE:" = 6 characters + space + 5 digits = 12 characters total
+    ; Centered in 40 columns: (40 - 12) / 2 = column 14
+    MOV DH, 0Eh                    ; Sets text row 14 for the score label
+    MOV DL, 0Eh                    ; Sets text column 14 for the score label
+    LEA SI, MSG_SCORE              ; Loads the address of the SCORE label into SI
+    CALL DRAW_STRING               ; Draws the SCORE label on screen
 
-    MOV DH, 0Eh                    ; Misma fila 14
-    MOV DL, 15h                    ; Columna 21: justo despues de "SCORE: " (14 + 7)
-    CALL DRAW_SCORE                ; Dibuja los 5 digitos del puntaje en (14, 21)
+    MOV DH, 0Eh                    ; Uses the same row as the SCORE label
+    MOV DL, 15h                    ; Sets column 21, after "SCORE: "
+    CALL DRAW_SCORE                ; Draws the five score digits after the SCORE label
 
-    ; Mostrar instrucciones centradas en fila 16
-    ; "R=RESTART  Q=QUIT" = 18 chars -> col inicio = (40-18)/2 = 11
-    MOV DH, 10h                    ; Fila de texto 16
-    MOV DL, 0Bh                    ; Columna 11: centrado para "R=RESTART  Q=QUIT"
-    LEA SI, MSG_RESTART
-    CALL DRAW_STRING
+    ; Shows centered restart and quit instructions on row 16
+    ; "R=RESTART  Q=QUIT" = 18 characters, so start column = (40 - 18) / 2 = 11
+    MOV DH, 10h                    ; Sets text row 16 for the restart/quit instructions
+    MOV DL, 0Bh                    ; Sets text column 11 to center the instruction string
+    LEA SI, MSG_RESTART            ; Loads the address of the restart/quit message into SI
+    CALL DRAW_STRING               ; Draws the restart/quit instructions on screen
 
 WAIT_KEY:
-    MOV AH, 00h                    ; INT 16h function 00h = blocking read key from keyboard
-    INT 16h                        ; Waits here until a key is pressed; AL = ASCII code
+    MOV AH, 00h                    ; Selects INT 16h function 00h, which waits for a key press
+    INT 16h                        ; Reads a key from the keyboard; ASCII code is returned in AL
 
-    CMP AL, 72h                    ; Is it 'r' (lowercase, ASCII 0x72)?
-    JE  DO_RESTART                 ; Yes: restart game
-    CMP AL, 52h                    ; Is it 'R' (uppercase, ASCII 0x52)?
-    JE  DO_RESTART                 ; Yes: restart game
-    CMP AL, 71h                    ; Is it 'q' (lowercase, ASCII 0x71)?
-    JE  DO_QUIT                    ; Yes: exit to DOS
-    CMP AL, 51h                    ; Is it 'Q' (uppercase, ASCII 0x51)?
-    JE  DO_QUIT                    ; Yes: exit to DOS
-    JMP WAIT_KEY                   ; Any other key: ignore and wait again
+    CMP AL, 72h                    ; Compares AL with lowercase 'r'
+    JE  DO_RESTART                 ; If the key is 'r', restart the game
+    CMP AL, 52h                    ; Compares AL with uppercase 'R'
+    JE  DO_RESTART                 ; If the key is 'R', restart the game
+    CMP AL, 71h                    ; Compares AL with lowercase 'q'
+    JE  DO_QUIT                    ; If the key is 'q', quit the game
+    CMP AL, 51h                    ; Compares AL with uppercase 'Q'
+    JE  DO_QUIT                    ; If the key is 'Q', quit the game
+    JMP WAIT_KEY                   ; If another key is pressed, keep waiting
 
 DO_RESTART:
-    CALL RESET_GAME                ; Restore all variables to initial values
-    JMP  GAME_LOOP                 ; Re-enter main game loop from the top
+    CALL RESET_GAME                ; Restores all game variables to their initial values
+    JMP  GAME_LOOP                 ; Returns to the main game loop after resetting
 
 DO_QUIT:
-    MOV AX, 4C00h                  ; INT 21h function 4Ch = Terminate Program, exit code 0
-    INT 21h                        ; Return control to DOS
+    MOV AX, 4C00h                  ; Selects DOS terminate program function with exit code 0
+    INT 21h                        ; Calls DOS interrupt to return control to DOS
 
-    RET                            ; Fallback return (should never reach here after INT 21h)
-MAIN ENDP                          ; End of MAIN procedure
+    RET                            ; Backup return instruction, normally not reached after INT 21h
+MAIN ENDP                          ; Ends the MAIN procedure
 
 ; ============================================================
 ; INIT_ENEMIES
@@ -1303,113 +1302,117 @@ CHECK_BULLET_BUNKER_COLLISION ENDP
 ; Same logic as CHECK_BULLET_BUNKER_COLLISION but for the
 ; enemy bullet (EBULLET_X/Y) against both bunkers.
 ; ============================================================
-CHECK_EBULLET_BUNKER_COLLISION PROC NEAR
-    CMP EBULLET_ACTIVE, 01h       ; Enemy bullet in flight?
-    JE  CEBC_START                ; Yes: check collisions
-    JMP CEBC_EXIT                 ; No: skip
-CEBC_START:
+
+CHECK_EBULLET_BUNKER_COLLISION PROC NEAR 
+
+    CMP EBULLET_ACTIVE, 01h       ; Check if the enemy bullet is currently active
+    JE  CEBC_START                ; If it is active, start checking bunker collisions
+    JMP CEBC_EXIT                 ; If it is not active, skip the whole procedure
+
+CEBC_START:                       ; Start of enemy-bullet-to-bunker collision checking
 
     ; ---- Bunker 1 ----
-    MOV AX, EBULLET_X
-    CMP AX, BUNKER1_X             ; Left of bunker 1?
-    JL  CEBC_B2                   ; Yes: no hit
+    MOV AX, EBULLET_X             ; Load the enemy bullet X position into AX
+    CMP AX, BUNKER1_X             ; Compare bullet X with the left edge of bunker 1
+    JL  CEBC_B2                   ; If bullet is left of bunker 1, check bunker 2 instead
 
-    MOV AX, BUNKER_SPRITE_WIDTH
-    MUL BUNKER_SCALE
-    ADD AX, BUNKER1_X             ; AX = right edge bunker 1
-    CMP EBULLET_X, AX             ; Right of bunker 1?
-    JG  CEBC_B2
+    MOV AX, BUNKER_SPRITE_WIDTH   ; Load bunker sprite width in logical pixels
+    MUL BUNKER_SCALE              ; Multiply width by scale to get real bunker width in screen pixels
+    ADD AX, BUNKER1_X             ; Add bunker 1 X position to calculate bunker 1 right edge
+    CMP EBULLET_X, AX             ; Compare bullet X with bunker 1 right edge
+    JG  CEBC_B2                   ; If bullet is right of bunker 1, check bunker 2 instead
 
-    MOV AX, EBULLET_Y
-    CMP AX, BUNKER_Y              ; Above bunker?
-    JL  CEBC_B2
+    MOV AX, EBULLET_Y             ; Load the enemy bullet Y position into AX
+    CMP AX, BUNKER_Y              ; Compare bullet Y with the top edge of the bunker
+    JL  CEBC_B2                   ; If bullet is above bunker 1, check bunker 2 instead
 
-    MOV AX, BUNKER_SPRITE_HEIGHT
-    MUL BUNKER_SCALE
-    ADD AX, BUNKER_Y              ; AX = bottom edge bunker 1
-    CMP EBULLET_Y, AX             ; Below bunker?
-    JG  CEBC_B2
+    MOV AX, BUNKER_SPRITE_HEIGHT  ; Load bunker sprite height in logical pixels
+    MUL BUNKER_SCALE              ; Multiply height by scale to get real bunker height in screen pixels
+    ADD AX, BUNKER_Y              ; Add bunker Y position to calculate bunker bottom edge
+    CMP EBULLET_Y, AX             ; Compare bullet Y with bunker 1 bottom edge
+    JG  CEBC_B2                   ; If bullet is below bunker 1, check bunker 2 instead
 
     ; Hit: compute pixel_col and pixel_row for bunker 1
-    MOV AX, EBULLET_X
-    SUB AX, BUNKER1_X             ; Horizontal offset
-    XOR DX, DX
-    MOV BL, BUNKER_SCALE_BYTE
-    DIV BL                        ; AL = pixel_col
-    XOR AH, AH
-    MOV CX, AX
+    MOV AX, EBULLET_X             ; Load enemy bullet X position
+    SUB AX, BUNKER1_X             ; Calculate horizontal offset inside bunker 1
+    XOR DX, DX                    ; Clear DX before division because DIV uses DX:AX
+    MOV BL, BUNKER_SCALE_BYTE     ; Load bunker scale as a byte divisor
+    DIV BL                        ; Divide offset by scale; AL = logical pixel column
+    XOR AH, AH                    ; Clear remainder so AX contains only the column index
+    MOV CX, AX                    ; Store logical pixel column in CX
 
-    MOV AX, EBULLET_Y
-    SUB AX, BUNKER_Y              ; Vertical offset
-    XOR DX, DX
-    DIV BL                        ; AL = pixel_row
-    XOR AH, AH
+    MOV AX, EBULLET_Y             ; Load enemy bullet Y position
+    SUB AX, BUNKER_Y              ; Calculate vertical offset inside the bunker
+    XOR DX, DX                    ; Clear DX before division
+    DIV BL                        ; Divide offset by scale; AL = logical pixel row
+    XOR AH, AH                    ; Clear remainder so AX contains only the row index
 
-    MOV BX, BUNKER_SPRITE_WIDTH
-    MUL BX                        ; AX = pixel_row * 7
-    ADD AX, CX                    ; AX = flat index
-    MOV SI, AX
+    MOV BX, BUNKER_SPRITE_WIDTH   ; Load bunker width in logical pixels
+    MUL BX                        ; AX = pixel_row * bunker_width
+    ADD AX, CX                    ; AX = pixel_row * width + pixel_col, the flat array index
+    MOV SI, AX                    ; Store the bunker state index in SI
 
-    MOV BX, OFFSET BUNKER1_STATE
-    ADD BX, SI
-    CMP BYTE PTR [BX], 00h        ; El pixel ya estaba destruido?
-    JE  CEBC_EXIT                 ; Si: la bala pasa por el hueco, no desaparece
-    MOV BYTE PTR [BX], 00h        ; No: destruir pixel del bunker 1
-    MOV EBULLET_ACTIVE, 00h       ; Desactivar bala enemiga
-    JMP CEBC_EXIT
+    MOV BX, OFFSET BUNKER1_STATE  ; Load the base address of bunker 1 state array
+    ADD BX, SI                    ; Move BX to the exact state byte that was hit
+    CMP BYTE PTR [BX], 00h        ; Check if that bunker pixel was already destroyed
+    JE  CEBC_EXIT                 ; If it was already destroyed, the bullet passes through
+    MOV BYTE PTR [BX], 00h        ; Mark that bunker pixel as destroyed
+    MOV EBULLET_ACTIVE, 00h       ; Deactivate the enemy bullet after hitting a valid bunker pixel
+    JMP CEBC_EXIT                 ; Exit after handling the collision with bunker 1
 
-CEBC_B2:
+CEBC_B2:                          ; Start checking collision against bunker 2
+
     ; ---- Bunker 2 ----
-    MOV AX, EBULLET_X
-    CMP AX, BUNKER2_X             ; Left of bunker 2?
-    JL  CEBC_EXIT
+    MOV AX, EBULLET_X             ; Load the enemy bullet X position into AX
+    CMP AX, BUNKER2_X             ; Compare bullet X with the left edge of bunker 2
+    JL  CEBC_EXIT                 ; If bullet is left of bunker 2, there is no bunker collision
 
-    MOV AX, BUNKER_SPRITE_WIDTH
-    MUL BUNKER_SCALE
-    ADD AX, BUNKER2_X             ; AX = right edge bunker 2
-    CMP EBULLET_X, AX             ; Right of bunker 2?
-    JG  CEBC_EXIT
+    MOV AX, BUNKER_SPRITE_WIDTH   ; Load bunker sprite width in logical pixels
+    MUL BUNKER_SCALE              ; Multiply width by scale to get real bunker width in screen pixels
+    ADD AX, BUNKER2_X             ; Add bunker 2 X position to calculate bunker 2 right edge
+    CMP EBULLET_X, AX             ; Compare bullet X with bunker 2 right edge
+    JG  CEBC_EXIT                 ; If bullet is right of bunker 2, there is no collision
 
-    MOV AX, EBULLET_Y
-    CMP AX, BUNKER_Y              ; Above bunker?
-    JL  CEBC_EXIT
+    MOV AX, EBULLET_Y             ; Load the enemy bullet Y position into AX
+    CMP AX, BUNKER_Y              ; Compare bullet Y with the top edge of the bunker
+    JL  CEBC_EXIT                 ; If bullet is above bunker 2, there is no collision
 
-    MOV AX, BUNKER_SPRITE_HEIGHT
-    MUL BUNKER_SCALE
-    ADD AX, BUNKER_Y              ; AX = bottom edge bunker 2
-    CMP EBULLET_Y, AX             ; Below bunker?
-    JG  CEBC_EXIT
+    MOV AX, BUNKER_SPRITE_HEIGHT  ; Load bunker sprite height in logical pixels
+    MUL BUNKER_SCALE              ; Multiply height by scale to get real bunker height in screen pixels
+    ADD AX, BUNKER_Y              ; Add bunker Y position to calculate bunker bottom edge
+    CMP EBULLET_Y, AX             ; Compare bullet Y with bunker 2 bottom edge
+    JG  CEBC_EXIT                 ; If bullet is below bunker 2, there is no collision
 
     ; Hit: compute pixel index for bunker 2
-    MOV AX, EBULLET_X
-    SUB AX, BUNKER2_X
-    XOR DX, DX
-    MOV BL, BUNKER_SCALE_BYTE
-    DIV BL
-    XOR AH, AH
-    MOV CX, AX
+    MOV AX, EBULLET_X             ; Load enemy bullet X position
+    SUB AX, BUNKER2_X             ; Calculate horizontal offset inside bunker 2
+    XOR DX, DX                    ; Clear DX before division because DIV uses DX:AX
+    MOV BL, BUNKER_SCALE_BYTE     ; Load bunker scale as a byte divisor
+    DIV BL                        ; Divide offset by scale; AL = logical pixel column
+    XOR AH, AH                    ; Clear remainder so AX contains only the column index
+    MOV CX, AX                    ; Store logical pixel column in CX
 
-    MOV AX, EBULLET_Y
-    SUB AX, BUNKER_Y
-    XOR DX, DX
-    DIV BL
-    XOR AH, AH
+    MOV AX, EBULLET_Y             ; Load enemy bullet Y position
+    SUB AX, BUNKER_Y              ; Calculate vertical offset inside the bunker
+    XOR DX, DX                    ; Clear DX before division
+    DIV BL                        ; Divide offset by scale; AL = logical pixel row
+    XOR AH, AH                    ; Clear remainder so AX contains only the row index
 
-    MOV BX, BUNKER_SPRITE_WIDTH
-    MUL BX
-    ADD AX, CX
-    MOV SI, AX
+    MOV BX, BUNKER_SPRITE_WIDTH   ; Load bunker width in logical pixels
+    MUL BX                        ; AX = pixel_row * bunker_width
+    ADD AX, CX                    ; AX = pixel_row * width + pixel_col, the flat array index
+    MOV SI, AX                    ; Store the bunker state index in SI
 
-    MOV BX, OFFSET BUNKER2_STATE
-    ADD BX, SI
-    CMP BYTE PTR [BX], 00h        ; El pixel ya estaba destruido?
-    JE  CEBC_EXIT                 ; Si: la bala pasa por el hueco, no desaparece
-    MOV BYTE PTR [BX], 00h        ; No: destruir pixel del bunker 2
-    MOV EBULLET_ACTIVE, 00h       ; Desactivar bala enemiga
+    MOV BX, OFFSET BUNKER2_STATE  ; Load the base address of bunker 2 state array
+    ADD BX, SI                    ; Move BX to the exact state byte that was hit
+    CMP BYTE PTR [BX], 00h        ; Check if that bunker pixel was already destroyed
+    JE  CEBC_EXIT                 ; If it was already destroyed, the bullet passes through
+    MOV BYTE PTR [BX], 00h        ; Mark that bunker pixel as destroyed
+    MOV EBULLET_ACTIVE, 00h       ; Deactivate the enemy bullet after hitting a valid bunker pixel
 
-CEBC_EXIT:
-    RET
-CHECK_EBULLET_BUNKER_COLLISION ENDP
+CEBC_EXIT:                        ; Exit label for the procedure
+    RET                           ; Return to the caller
+CHECK_EBULLET_BUNKER_COLLISION ENDP ; End of enemy-bullet-to-bunker collision procedure
 
 ; ============================================================
 ; CHECK_EBULLET_PLAYER_COLLISION
@@ -1421,664 +1424,681 @@ CHECK_EBULLET_BUNKER_COLLISION ENDP
 ;   Bottom = PLAYER_Y + SPRITE_HEIGHT * SPRITE_SCALE
 ; If hit: GAME_ACTIVE = 0, GAME_WIN = 0 (loss).
 ; ============================================================
-CHECK_EBULLET_PLAYER_COLLISION PROC NEAR
-    CMP EBULLET_ACTIVE, 01h       ; Hay bala enemiga en vuelo?
-    JNE CEPC_EXIT                 ; No: saltar toda la comprobacion
 
-    MOV AX, EBULLET_X
-    CMP AX, PLAYER_X              ; Bala a la izquierda del borde izquierdo del jugador?
-    JL  CEPC_EXIT                 ; Si: no hay colision
+CHECK_EBULLET_PLAYER_COLLISION PROC NEAR ; Procedure that checks if the enemy bullet hits the player
 
-    MOV AX, SPRITE_WIDTH
-    MUL SPRITE_SCALE              ; AX = ancho real del jugador en pixels (SPRITE_WIDTH * SPRITE_SCALE)
-    ADD AX, PLAYER_X              ; AX = borde derecho del jugador
-    CMP EBULLET_X, AX             ; Bala a la derecha del borde derecho del jugador?
-    JG  CEPC_EXIT                 ; Si: no hay colision
+    CMP EBULLET_ACTIVE, 01h       ; Check if the enemy bullet is currently active
+    JNE CEPC_EXIT                 ; If no enemy bullet is active, skip the whole collision check
 
-    MOV AX, EBULLET_Y
-    CMP AX, PLAYER_Y              ; Bala por encima del borde superior del jugador?
-    JL  CEPC_EXIT                 ; Si: no hay colision
+    MOV AX, EBULLET_X             ; Load the enemy bullet X position into AX
+    CMP AX, PLAYER_X              ; Compare bullet X with the player's left edge
+    JL  CEPC_EXIT                 ; If bullet is left of the player, there is no collision
 
-    MOV AX, SPRITE_HEIGHT
-    MUL SPRITE_SCALE              ; AX = alto real del jugador en pixels
-    ADD AX, PLAYER_Y              ; AX = borde inferior del jugador
-    CMP EBULLET_Y, AX             ; Bala por debajo del borde inferior?
-    JG  CEPC_EXIT                 ; Si: no hay colision
+    MOV AX, SPRITE_WIDTH          ; Load the player sprite width in logical pixels
+    MUL SPRITE_SCALE              ; AX = SPRITE_WIDTH * SPRITE_SCALE, the real player width in screen pixels
+    ADD AX, PLAYER_X              ; AX = player's right edge on the screen
+    CMP EBULLET_X, AX             ; Compare bullet X with the player's right edge
+    JG  CEPC_EXIT                 ; If bullet is right of the player, there is no collision
 
-    ; Impacto: la bala enemiga golpeo al jugador
-    MOV GAME_ACTIVE, 00h          ; Detiene el bucle principal
-    MOV GAME_WIN, 00h             ; Marca como derrota
-    MOV EBULLET_ACTIVE, 00h       ; Desactiva la bala enemiga
+    MOV AX, EBULLET_Y             ; Load the enemy bullet Y position into AX
+    CMP AX, PLAYER_Y              ; Compare bullet Y with the player's top edge
+    JL  CEPC_EXIT                 ; If bullet is above the player, there is no collision
 
-CEPC_EXIT:
-    RET
-CHECK_EBULLET_PLAYER_COLLISION ENDP
+    MOV AX, SPRITE_HEIGHT         ; Load the player sprite height in logical pixels
+    MUL SPRITE_SCALE              ; AX = SPRITE_HEIGHT * SPRITE_SCALE, the real player height in screen pixels
+    ADD AX, PLAYER_Y              ; AX = player's bottom edge on the screen
+    CMP EBULLET_Y, AX             ; Compare bullet Y with the player's bottom edge
+    JG  CEPC_EXIT                 ; If bullet is below the player, there is no collision
+
+    ; If execution reaches this point, the enemy bullet is inside the player's bounding box
+    MOV GAME_ACTIVE, 00h          ; Stop the main game loop by marking the game as inactive
+    MOV GAME_WIN, 00h             ; Mark the result as a loss, not a win
+    MOV EBULLET_ACTIVE, 00h       ; Deactivate the enemy bullet after hitting the player
+
+CEPC_EXIT:                        ; Exit label for this collision procedure
+    RET                           ; Return to the caller
+CHECK_EBULLET_PLAYER_COLLISION ENDP ; End of enemy-bullet-to-player collision procedure
+
+
 
 ; ============================================================
 ; CHECK_BULLET_ENEMY_COLLISION
-; Comprueba la bala del jugador contra la caja de colision de
-; cada enemigo vivo. Caja de cada enemigo:
-;   Izquierda = enemy_X
-;   Derecha   = enemy_X + ENEMY_SPRITE_W * ENEMY_SCALE
-;   Arriba    = enemy_Y
-;   Abajo     = enemy_Y + ENEMY_SPRITE_H * ENEMY_SCALE
-; Al impactar: elimina al enemigo, reproduce sonido, suma 10 pts.
-; Si ENEMY_COUNT llega a 0: el jugador gana.
+; Checks the player bullet against the collision box of
+; each living enemy. Each enemy collision box is:
+;   Left   = enemy_X
+;   Right  = enemy_X + ENEMY_SPRITE_W * ENEMY_SCALE
+;   Top    = enemy_Y
+;   Bottom = enemy_Y + ENEMY_SPRITE_H * ENEMY_SCALE
+; On hit: destroys the enemy, plays a sound, and adds 10 points.
+; If ENEMY_COUNT reaches 0, the player wins.
 ; ============================================================
-CHECK_BULLET_ENEMY_COLLISION PROC NEAR
-    CMP BULLET_ACTIVE, 01h        ; Hay bala del jugador en vuelo?
-    JNE CBEC_EXIT                 ; No: saltar todas las comprobaciones
 
-    MOV SI, 0                     ; SI = offset en ENEMY_DATA (0,5,10...85)
+CHECK_BULLET_ENEMY_COLLISION PROC NEAR ; Procedure that checks if the player bullet hits any living enemy
 
-CBEC_LOOP:
-    CMP SI, 005Ah                 ; Se revisaron los 18 enemigos (90 bytes)?
-    JGE CBEC_EXIT                 ; Si: terminar
+    CMP BULLET_ACTIVE, 01h        ; Check if the player bullet is currently active
+    JNE CBEC_EXIT                 ; If no player bullet is active, skip all collision checks
 
-    MOV AL, BYTE PTR ENEMY_DATA[SI]   ; AL = estado del enemigo actual
-    CMP AL, 01h                   ; Esta vivo?
-    JNE CBEC_SKIP                 ; No: saltar al siguiente
+    MOV SI, 0                     ; SI = offset into ENEMY_DATA, starting at the first enemy entry
 
-    MOV DI, WORD PTR ENEMY_DATA[SI+1]  ; DI = posicion X del enemigo
-    MOV BX, WORD PTR ENEMY_DATA[SI+3]  ; BX = posicion Y del enemigo
+CBEC_LOOP:                        ; Loop through all enemy entries
+    CMP SI, 005Ah                 ; Check if all 90 bytes of ENEMY_DATA have been processed
+    JGE CBEC_EXIT                 ; If SI >= 90, all 18 enemies were checked, so exit
 
-    ; Comprobacion borde izquierdo: bala debe estar a la derecha de enemy_X
-    CMP BULLET_X, DI
-    JL  CBEC_SKIP                 ; Bala a la izquierda del enemigo: no hay impacto
+    MOV AL, BYTE PTR ENEMY_DATA[SI]   ; Load the current enemy state into AL
+    CMP AL, 01h                   ; Check if the current enemy is alive
+    JNE CBEC_SKIP                 ; If the enemy is not alive, skip to the next enemy
 
-    ; Comprobacion borde derecho: bala <= enemy_X + ancho_real
-    PUSH BX                       ; Salvar Y del enemigo (MUL puede alterar DX:AX)
-    PUSH SI                       ; Salvar indice del enemigo
-    MOV  AX, ENEMY_SPRITE_W
-    MUL  ENEMY_SCALE              ; AX = ancho real del enemigo en pixels
-    ADD  AX, DI                   ; AX = borde derecho del enemigo
-    CMP  BULLET_X, AX             ; Bala a la derecha del borde derecho?
-    POP  SI
-    POP  BX
-    JG  CBEC_SKIP                 ; Si: no hay impacto
+    MOV DI, WORD PTR ENEMY_DATA[SI+1]  ; Load the current enemy X position into DI
+    MOV BX, WORD PTR ENEMY_DATA[SI+3]  ; Load the current enemy Y position into BX
 
-    ; Comprobacion borde superior: bala debe estar por debajo de enemy_Y
-    CMP BULLET_Y, BX
-    JL  CBEC_SKIP                 ; Bala por encima del enemigo: no hay impacto
+    ; Left-edge check: the bullet must be at or to the right of enemy_X
+    CMP BULLET_X, DI              ; Compare bullet X with the enemy left edge
+    JL  CBEC_SKIP                 ; If bullet is left of the enemy, there is no hit
 
-    ; Comprobacion borde inferior: bala <= enemy_Y + alto_real
-    PUSH BX
-    PUSH SI
-    MOV  AX, ENEMY_SPRITE_H
-    MUL  ENEMY_SCALE              ; AX = alto real del enemigo en pixels
-    ADD  AX, BX                   ; AX = borde inferior del enemigo
-    CMP  BULLET_Y, AX             ; Bala por debajo del borde inferior?
-    POP  SI
-    POP  BX
-    JG  CBEC_SKIP                 ; Si: no hay impacto
+    ; Right-edge check: bullet_X must be <= enemy_X + scaled enemy width
+    PUSH BX                       ; Save enemy Y because BX will be needed after the width calculation
+    PUSH SI                       ; Save enemy data index before using calculations that may affect registers
+    MOV  AX, ENEMY_SPRITE_W       ; Load enemy sprite width in logical pixels
+    MUL  ENEMY_SCALE              ; AX = enemy sprite width * scale, the real enemy width in screen pixels
+    ADD  AX, DI                   ; AX = enemy right edge
+    CMP  BULLET_X, AX             ; Compare bullet X with the enemy right edge
+    POP  SI                       ; Restore enemy data index
+    POP  BX                       ; Restore enemy Y position
+    JG  CBEC_SKIP                 ; If bullet is right of the enemy, there is no hit
 
-    ; ---- IMPACTO ----
-    MOV BYTE PTR ENEMY_DATA[SI], 00h   ; Eliminar enemigo: poner estado en 0 (muerto)
-    MOV BULLET_ACTIVE, 00h             ; Desactivar la bala del jugador
+    ; Top-edge check: the bullet must be at or below enemy_Y
+    CMP BULLET_Y, BX              ; Compare bullet Y with the enemy top edge
+    JL  CBEC_SKIP                 ; If bullet is above the enemy, there is no hit
 
-    ; Reproducir sonido de impacto inmediatamente
-    MOV BX, SOUND_HIT_FREQ        ; BX = divisor PIT para frecuencia de impacto
-    CALL PLAY_SOUND               ; Encender altavoz con esa frecuencia
-    CALL STOP_SOUND               ; Apagar altavoz (pitido corto)
+    ; Bottom-edge check: bullet_Y must be <= enemy_Y + scaled enemy height
+    PUSH BX                       ; Save enemy Y before calculating the scaled height
+    PUSH SI                       ; Save enemy data index before the calculation
+    MOV  AX, ENEMY_SPRITE_H       ; Load enemy sprite height in logical pixels
+    MUL  ENEMY_SCALE              ; AX = enemy sprite height * scale, the real enemy height in screen pixels
+    ADD  AX, BX                   ; AX = enemy bottom edge
+    CMP  BULLET_Y, AX             ; Compare bullet Y with the enemy bottom edge
+    POP  SI                       ; Restore enemy data index
+    POP  BX                       ; Restore enemy Y position
+    JG  CBEC_SKIP                 ; If bullet is below the enemy, there is no hit
 
-    ADD SCORE, 000Ah              ; Sumar 10 puntos al puntaje (0x0A = 10)
+    ; ---- HIT CONFIRMED ----
+    MOV BYTE PTR ENEMY_DATA[SI], 00h   ; Mark the current enemy as dead by setting its state to 0
+    MOV BULLET_ACTIVE, 00h             ; Deactivate the player bullet after the hit
 
-    DEC ENEMY_COUNT               ; Un enemigo menos vivo
-    JNZ CBEC_EXIT                 ; Quedan enemigos: salir (bala ya no existe)
+    ; Play hit sound immediately
+    MOV BX, SOUND_HIT_FREQ        ; Load the PIT divisor for the hit sound effect
+    CALL PLAY_SOUND               ; Turn on the PC speaker using the hit frequency
+    CALL STOP_SOUND               ; Stop the speaker to create a short sound effect
 
-    ; Todos los enemigos eliminados: el jugador gana
-    MOV GAME_ACTIVE, 00h          ; Detener bucle principal
-    MOV GAME_WIN, 01h             ; Marcar como victoria
-    JMP CBEC_EXIT
+    ADD SCORE, 000Ah              ; Add 10 points to the score for destroying one enemy
 
-CBEC_SKIP:
-    ADD SI, 0005h                 ; Avanzar al siguiente enemigo (5 bytes por entrada)
-    JMP CBEC_LOOP                 ; Continuar el bucle
+    DEC ENEMY_COUNT               ; Decrease the number of living enemies by one
+    JNZ CBEC_EXIT                 ; If enemies remain alive, exit because the bullet is gone
 
-CBEC_EXIT:
-    RET
-CHECK_BULLET_ENEMY_COLLISION ENDP
+    ; All enemies destroyed: player wins
+    MOV GAME_ACTIVE, 00h          ; Stop the main game loop
+    MOV GAME_WIN, 01h             ; Mark the game result as a victory
+    JMP CBEC_EXIT                 ; Exit the procedure after setting the win state
+
+CBEC_SKIP:                        ; Label used when the current enemy was not hit
+    ADD SI, 0005h                 ; Move to the next enemy entry, since each entry uses 5 bytes
+    JMP CBEC_LOOP                 ; Continue checking the next enemy
+
+CBEC_EXIT:                        ; Exit label for this collision procedure
+    RET                           ; Return to the caller
+CHECK_BULLET_ENEMY_COLLISION ENDP ; End of player-bullet-to-enemy collision procedure
+
 
 ; ============================================================
 ; DRAW_BUNKERS
-; Dibuja los dos bunkers pixel a pixel, omitiendo cualquier
-; pixel cuyo byte de estado en BUNKER1_STATE / BUNKER2_STATE
-; sea 0 (destruido). Cada pixel vivo se dibuja como un bloque
-; BUNKER_SCALE x BUNKER_SCALE en COLOR_CYAN.
+; Draws both bunkers pixel by pixel, skipping any pixel
+; whose state byte in BUNKER1_STATE / BUNKER2_STATE
+; is 0, meaning destroyed. Each alive pixel is drawn as a
+; BUNKER_SCALE x BUNKER_SCALE block using COLOR_CYAN.
 ; ============================================================
-DRAW_BUNKERS PROC NEAR
-    PUSH BP                        ; Preservar BP (se usa como BLOCK_Y dentro del proc)
+
+DRAW_BUNKERS PROC NEAR             ; Procedure that draws both bunkers on the screen
+    PUSH BP                        ; Save BP because it is used as temporary storage for BLOCK_Y
 
     ; ---- Bunker 1 ----
-    MOV SI, 0                      ; SI = indice plano en BUNKER1_STATE (0..27)
-    MOV BX, 0                      ; BX = fila del sprite (0..BUNKER_SPRITE_HEIGHT-1)
+    MOV SI, 0                      ; SI = flat index into BUNKER1_STATE, from 0 to 27
+    MOV BX, 0                      ; BX = current sprite row for bunker 1
 
-B1_ROW:
-    CMP BX, BUNKER_SPRITE_HEIGHT   ; Se procesaron todas las filas del bunker 1?
-    JGE DRAW_B2                    ; Si: pasar al bunker 2
+B1_ROW:                            ; Start of bunker 1 row loop
+    CMP BX, BUNKER_SPRITE_HEIGHT   ; Check if all bunker 1 sprite rows have been processed
+    JGE DRAW_B2                    ; If all rows are done, move on to bunker 2
 
-    MOV CX, 0                      ; CX = columna del sprite (0..BUNKER_SPRITE_WIDTH-1)
+    MOV CX, 0                      ; CX = current sprite column for bunker 1
 
-B1_COL:
-    CMP CX, BUNKER_SPRITE_WIDTH    ; Se procesaron todas las columnas de esta fila?
-    JGE B1_NEXT_ROW                ; Si: siguiente fila
+B1_COL:                            ; Start of bunker 1 column loop
+    CMP CX, BUNKER_SPRITE_WIDTH    ; Check if all columns in the current row have been processed
+    JGE B1_NEXT_ROW                ; If all columns are done, go to the next row
 
-    ; Leer el estado de este pixel
-    PUSH BX                        ; Salvar fila (BX se reusara como registro de direccion)
-    MOV  BX, OFFSET BUNKER1_STATE  ; BX = direccion base del array de estado
-    ADD  BX, SI                    ; BX = direccion del byte de estado de este pixel
-    MOV  AL, [BX]                  ; AL = estado (1 = vivo, 0 = destruido)
-    POP  BX                        ; Restaurar contador de fila
+    ; Read the state of the current bunker pixel
+    PUSH BX                        ; Save the current row because BX will be used for addressing
+    MOV  BX, OFFSET BUNKER1_STATE  ; Load the base address of bunker 1 state array into BX
+    ADD  BX, SI                    ; Move BX to the state byte of the current bunker pixel
+    MOV  AL, [BX]                  ; Load the state value: 1 = alive, 0 = destroyed
+    POP  BX                        ; Restore the current row counter
 
-    CMP AL, 00h                    ; Pixel destruido?
-    JE  B1_SKIP                    ; Si: no dibujarlo
+    CMP AL, 00h                    ; Check if the current bunker pixel is destroyed
+    JE  B1_SKIP                    ; If it is destroyed, skip drawing it
 
-    ; Pixel vivo: calcular posicion del bloque en pantalla y dibujarlo
-    PUSH BX                        ; Salvar fila del sprite
-    PUSH CX                        ; Salvar columna del sprite
-    PUSH SI                        ; Salvar indice del array de estado
+    ; Current pixel is alive: calculate its scaled block position and draw it
+    PUSH BX                        ; Save the current sprite row
+    PUSH CX                        ; Save the current sprite column
+    PUSH SI                        ; Save the current state-array index
 
-    ; BLOCK_X = BUNKER1_X + (columna * BUNKER_SCALE)
-    MOV AX, CX                     ; AX = indice de columna
-    MUL BUNKER_SCALE               ; AX = columna * 3 = desplazamiento X en pixels
-    ADD AX, BUNKER1_X              ; AX = X absoluto del bloque en pantalla
+    ; BLOCK_X = BUNKER1_X + (column * BUNKER_SCALE)
+    MOV AX, CX                     ; AX = current sprite column
+    MUL BUNKER_SCALE               ; AX = column * scale, horizontal screen offset
+    ADD AX, BUNKER1_X              ; AX = final X position of the scaled block
     MOV DI, AX                     ; DI = BLOCK_X
 
-    ; BLOCK_Y = BUNKER_Y + (fila * BUNKER_SCALE)
-    MOV AX, BX                     ; AX = indice de fila
-    MUL BUNKER_SCALE               ; AX = fila * 3 = desplazamiento Y en pixels
-    ADD AX, BUNKER_Y               ; AX = Y absoluto del bloque en pantalla
+    ; BLOCK_Y = BUNKER_Y + (row * BUNKER_SCALE)
+    MOV AX, BX                     ; AX = current sprite row
+    MUL BUNKER_SCALE               ; AX = row * scale, vertical screen offset
+    ADD AX, BUNKER_Y               ; AX = final Y position of the scaled block
     MOV BP, AX                     ; BP = BLOCK_Y
 
-    MOV BX, 0                      ; BX = contador de fila del bloque (0..BUNKER_SCALE-1)
+    MOV BX, 0                      ; BX = scaled block row counter
 
-B1_BROW:
-    CMP BX, BUNKER_SCALE           ; Se dibujaron todas las filas del bloque?
-    JGE B1_BEND                    ; Si: terminar el bloque
+B1_BROW:                           ; Start of scaled block row loop for bunker 1
+    CMP BX, BUNKER_SCALE           ; Check if all rows of the scaled block were drawn
+    JGE B1_BEND                    ; If yes, finish drawing this scaled block
 
-    MOV SI, 0                      ; SI = contador de columna del bloque (0..BUNKER_SCALE-1)
+    MOV SI, 0                      ; SI = scaled block column counter
 
-B1_BCOL:
-    CMP SI, BUNKER_SCALE           ; Se dibujaron todas las columnas de esta fila del bloque?
-    JGE B1_BNROW                   ; Si: siguiente fila del bloque
+B1_BCOL:                           ; Start of scaled block column loop for bunker 1
+    CMP SI, BUNKER_SCALE           ; Check if all columns in this scaled block row were drawn
+    JGE B1_BNROW                   ; If yes, move to the next scaled block row
 
-    MOV AX, BP
-    ADD AX, BX                     ; AX = BLOCK_Y + fila_bloque = Y final en pantalla
-    MOV DX, AX                     ; DX = Y para INT 10h
-    MOV AX, DI
-    ADD AX, SI                     ; AX = BLOCK_X + columna_bloque = X final en pantalla
-    MOV CX, AX                     ; CX = X para INT 10h
+    MOV AX, BP                     ; AX = BLOCK_Y
+    ADD AX, BX                     ; AX = BLOCK_Y + block row, final screen Y
+    MOV DX, AX                     ; DX = Y coordinate required by INT 10h
+    MOV AX, DI                     ; AX = BLOCK_X
+    ADD AX, SI                     ; AX = BLOCK_X + block column, final screen X
+    MOV CX, AX                     ; CX = X coordinate required by INT 10h
 
-    MOV AH, 0Ch                    ; Funcion INT 10h: escribir pixel grafico
-    MOV AL, COLOR_CYAN             ; Color = cian (indice 1)
-    MOV BH, 00h                    ; Pagina de video 0
-    INT 10h                        ; Dibujar pixel en (CX, DX)
+    MOV AH, 0Ch                    ; Select INT 10h function 0Ch, write graphics pixel
+    MOV AL, COLOR_CYAN             ; Select cyan as the bunker pixel color
+    MOV BH, 00h                    ; Select video page 0
+    INT 10h                        ; Draw one pixel at coordinates (CX, DX)
 
-    INC SI                         ; Siguiente columna del bloque
-    JMP B1_BCOL
+    INC SI                         ; Move to the next column inside the scaled block
+    JMP B1_BCOL                    ; Continue drawing columns of the scaled block
 
-B1_BNROW:
-    INC BX                         ; Siguiente fila del bloque
-    JMP B1_BROW
+B1_BNROW:                          ; Move to the next scaled block row
+    INC BX                         ; Increase the scaled block row counter
+    JMP B1_BROW                    ; Continue drawing rows of the scaled block
 
-B1_BEND:
-    POP SI                         ; Restaurar indice del array de estado
-    POP CX                         ; Restaurar columna del sprite
-    POP BX                         ; Restaurar fila del sprite
+B1_BEND:                           ; End of the current scaled block drawing
+    POP SI                         ; Restore the bunker state-array index
+    POP CX                         ; Restore the sprite column counter
+    POP BX                         ; Restore the sprite row counter
 
-B1_SKIP:
-    INC SI                         ; Avanzar al siguiente pixel del array de estado
-    INC CX                         ; Avanzar a la siguiente columna del sprite
-    JMP B1_COL
+B1_SKIP:                           ; Skip label used when the bunker pixel is destroyed
+    INC SI                         ; Advance to the next bunker state byte
+    INC CX                         ; Advance to the next sprite column
+    JMP B1_COL                     ; Continue checking columns in the current row
 
-B1_NEXT_ROW:
-    INC BX                         ; Siguiente fila del sprite
-    JMP B1_ROW
+B1_NEXT_ROW:                       ; Move to the next bunker 1 sprite row
+    INC BX                         ; Increase the sprite row counter
+    JMP B1_ROW                     ; Continue processing bunker 1 rows
 
-    ; ---- Bunker 2 (logica identica, usa BUNKER2_X y BUNKER2_STATE) ----
-DRAW_B2:
-    MOV SI, 0                      ; Reiniciar indice de estado para bunker 2
-    MOV BX, 0                      ; Reiniciar contador de fila
+    ; ---- Bunker 2 (same logic, using BUNKER2_X and BUNKER2_STATE) ----
+DRAW_B2:                           ; Start drawing bunker 2
+    MOV SI, 0                      ; Reset SI as the flat index into BUNKER2_STATE
+    MOV BX, 0                      ; Reset BX as the bunker 2 sprite row counter
 
-B2_ROW:
-    CMP BX, BUNKER_SPRITE_HEIGHT
-    JGE END_BUNKERS
+B2_ROW:                            ; Start of bunker 2 row loop
+    CMP BX, BUNKER_SPRITE_HEIGHT   ; Check if all bunker 2 sprite rows have been processed
+    JGE END_BUNKERS                ; If all rows are done, finish the procedure
 
-    MOV CX, 0
+    MOV CX, 0                      ; CX = current sprite column for bunker 2
 
-B2_COL:
-    CMP CX, BUNKER_SPRITE_WIDTH
-    JGE B2_NEXT_ROW
+B2_COL:                            ; Start of bunker 2 column loop
+    CMP CX, BUNKER_SPRITE_WIDTH    ; Check if all columns in the current row have been processed
+    JGE B2_NEXT_ROW                ; If all columns are done, go to the next row
 
-    PUSH BX
-    MOV  BX, OFFSET BUNKER2_STATE  ; Direccion base del array de estado del bunker 2
-    ADD  BX, SI
-    MOV  AL, [BX]                  ; AL = estado del pixel (1=vivo, 0=destruido)
-    POP  BX
+    PUSH BX                        ; Save the current row because BX will be used for addressing
+    MOV  BX, OFFSET BUNKER2_STATE  ; Load the base address of bunker 2 state array into BX
+    ADD  BX, SI                    ; Move BX to the state byte of the current bunker pixel
+    MOV  AL, [BX]                  ; Load the state value: 1 = alive, 0 = destroyed
+    POP  BX                        ; Restore the current row counter
 
-    CMP AL, 00h
-    JE  B2_SKIP
+    CMP AL, 00h                    ; Check if the current bunker pixel is destroyed
+    JE  B2_SKIP                    ; If it is destroyed, skip drawing it
 
-    PUSH BX
-    PUSH CX
-    PUSH SI
+    PUSH BX                        ; Save the current sprite row
+    PUSH CX                        ; Save the current sprite column
+    PUSH SI                        ; Save the current state-array index
 
-    ; BLOCK_X = BUNKER2_X + (columna * BUNKER_SCALE)
-    MOV AX, CX
-    MUL BUNKER_SCALE
-    ADD AX, BUNKER2_X              ; AX = X del bloque del bunker 2
-    MOV DI, AX
+    ; BLOCK_X = BUNKER2_X + (column * BUNKER_SCALE)
+    MOV AX, CX                     ; AX = current sprite column
+    MUL BUNKER_SCALE               ; AX = column * scale, horizontal screen offset
+    ADD AX, BUNKER2_X              ; AX = final X position of the scaled block for bunker 2
+    MOV DI, AX                     ; DI = BLOCK_X
 
-    ; BLOCK_Y = BUNKER_Y + (fila * BUNKER_SCALE)
-    MOV AX, BX
-    MUL BUNKER_SCALE
-    ADD AX, BUNKER_Y
-    MOV BP, AX
+    ; BLOCK_Y = BUNKER_Y + (row * BUNKER_SCALE)
+    MOV AX, BX                     ; AX = current sprite row
+    MUL BUNKER_SCALE               ; AX = row * scale, vertical screen offset
+    ADD AX, BUNKER_Y               ; AX = final Y position of the scaled block
+    MOV BP, AX                     ; BP = BLOCK_Y
 
-    MOV BX, 0
+    MOV BX, 0                      ; BX = scaled block row counter
 
-B2_BROW:
-    CMP BX, BUNKER_SCALE
-    JGE B2_BEND
+B2_BROW:                           ; Start of scaled block row loop for bunker 2
+    CMP BX, BUNKER_SCALE           ; Check if all rows of the scaled block were drawn
+    JGE B2_BEND                    ; If yes, finish drawing this scaled block
 
-    MOV SI, 0
+    MOV SI, 0                      ; SI = scaled block column counter
 
-B2_BCOL:
-    CMP SI, BUNKER_SCALE
-    JGE B2_BNROW
+B2_BCOL:                           ; Start of scaled block column loop for bunker 2
+    CMP SI, BUNKER_SCALE           ; Check if all columns in this scaled block row were drawn
+    JGE B2_BNROW                   ; If yes, move to the next scaled block row
 
-    MOV AX, BP
-    ADD AX, BX
-    MOV DX, AX                     ; DX = Y en pantalla
-    MOV AX, DI
-    ADD AX, SI
-    MOV CX, AX                     ; CX = X en pantalla
+    MOV AX, BP                     ; AX = BLOCK_Y
+    ADD AX, BX                     ; AX = BLOCK_Y + block row, final screen Y
+    MOV DX, AX                     ; DX = Y coordinate required by INT 10h
+    MOV AX, DI                     ; AX = BLOCK_X
+    ADD AX, SI                     ; AX = BLOCK_X + block column, final screen X
+    MOV CX, AX                     ; CX = X coordinate required by INT 10h
 
-    MOV AH, 0Ch
-    MOV AL, COLOR_CYAN             ; Color cian para el bunker 2
-    MOV BH, 00h
-    INT 10h                        ; Dibujar pixel
+    MOV AH, 0Ch                    ; Select INT 10h function 0Ch, write graphics pixel
+    MOV AL, COLOR_CYAN             ; Select cyan as the bunker pixel color
+    MOV BH, 00h                    ; Select video page 0
+    INT 10h                        ; Draw one pixel at coordinates (CX, DX)
 
-    INC SI
-    JMP B2_BCOL
+    INC SI                         ; Move to the next column inside the scaled block
+    JMP B2_BCOL                    ; Continue drawing columns of the scaled block
 
-B2_BNROW:
-    INC BX
-    JMP B2_BROW
+B2_BNROW:                          ; Move to the next scaled block row
+    INC BX                         ; Increase the scaled block row counter
+    JMP B2_BROW                    ; Continue drawing rows of the scaled block
 
-B2_BEND:
-    POP SI
-    POP CX
-    POP BX
+B2_BEND:                           ; End of the current scaled block drawing
+    POP SI                         ; Restore the bunker state-array index
+    POP CX                         ; Restore the sprite column counter
+    POP BX                         ; Restore the sprite row counter
 
-B2_SKIP:
-    INC SI
-    INC CX
-    JMP B2_COL
+B2_SKIP:                           ; Skip label used when the bunker pixel is destroyed
+    INC SI                         ; Advance to the next bunker state byte
+    INC CX                         ; Advance to the next sprite column
+    JMP B2_COL                     ; Continue checking columns in the current row
 
-B2_NEXT_ROW:
-    INC BX
-    JMP B2_ROW
+B2_NEXT_ROW:                       ; Move to the next bunker 2 sprite row
+    INC BX                         ; Increase the sprite row counter
+    JMP B2_ROW                     ; Continue processing bunker 2 rows
 
-END_BUNKERS:
-    POP BP                         ; Restaurar BP del llamador
-    RET
-DRAW_BUNKERS ENDP
+END_BUNKERS:                       ; End label for drawing both bunkers
+    POP BP                         ; Restore BP before returning to the caller
+    RET                            ; Return to the caller
+DRAW_BUNKERS ENDP                  ; End of DRAW_BUNKERS procedure
 
 ; ============================================================
 ; DRAW_SCORE
-; Convierte el valor numerico de SCORE (0-99990) en una cadena
-; ASCII de 5 digitos usando division repetida por 10 (tecnica
-; del tutorial Pong), luego la muestra en la posicion de cursor
-; indicada por el llamador en DH (fila) y DL (columna).
-; Entrada: DH = fila de texto, DL = columna de texto
+; Converts the numeric value of SCORE (0-99990) into a
+; 5-digit ASCII string using repeated division by 10
+; (technique from the Pong tutorial), then displays it at
+; the cursor position provided by the caller in DH (row)
+; and DL (column).
+; Input: DH = text row, DL = text column
 ; ============================================================
-DRAW_SCORE PROC NEAR
-    PUSH DX                        ; Salvar DH:DL del llamador (DIV sobreescribe DX)
 
-    ; Convertir SCORE a digitos ASCII mediante divisiones sucesivas por 10
-    MOV AX, SCORE                  ; AX = valor actual del puntaje
-    MOV BX, 000Ah                  ; BX = 10 (divisor decimal)
+DRAW_SCORE PROC NEAR               ; Procedure that converts SCORE to ASCII and prints it on screen
+    PUSH DX                        ; Save the caller's DH:DL cursor position because DIV overwrites DX
 
-    XOR DX, DX                     ; Limpiar DX antes de dividir (DIV usa DX:AX)
-    DIV BX                         ; AX = puntaje/10, DX = puntaje mod 10 (digito de unidades)
-    ADD DL, 30h                    ; Convertir digito 0-9 a ASCII '0'-'9' (sumar 0x30)
-    MOV SCORE_STR+4, DL            ; Guardar digito de unidades en posicion 4 de SCORE_STR
+    ; Convert SCORE to ASCII digits using repeated division by 10
+    MOV AX, SCORE                  ; Load the current numeric score into AX
+    MOV BX, 000Ah                  ; Load 10 into BX, used as the decimal divisor
 
-    XOR DX, DX
-    DIV BX                         ; DX = digito de decenas
-    ADD DL, 30h
-    MOV SCORE_STR+3, DL            ; Guardar digito de decenas en posicion 3
+    XOR DX, DX                     ; Clear DX before division because DIV uses DX:AX
+    DIV BX                         ; AX = SCORE / 10, DX = SCORE mod 10, giving the units digit
+    ADD DL, 30h                    ; Convert the units digit from number 0-9 to ASCII '0'-'9'
+    MOV SCORE_STR+4, DL            ; Store the units digit in the last position of SCORE_STR
 
-    XOR DX, DX
-    DIV BX                         ; DX = digito de centenas
-    ADD DL, 30h
-    MOV SCORE_STR+2, DL            ; Guardar digito de centenas en posicion 2
+    XOR DX, DX                     ; Clear DX before the next division
+    DIV BX                         ; AX = previous quotient / 10, DX = tens digit
+    ADD DL, 30h                    ; Convert the tens digit to ASCII
+    MOV SCORE_STR+3, DL            ; Store the tens digit in position 3 of SCORE_STR
 
-    XOR DX, DX
-    DIV BX                         ; DX = digito de miles
-    ADD DL, 30h
-    MOV SCORE_STR+1, DL            ; Guardar digito de miles en posicion 1
+    XOR DX, DX                     ; Clear DX before the next division
+    DIV BX                         ; AX = previous quotient / 10, DX = hundreds digit
+    ADD DL, 30h                    ; Convert the hundreds digit to ASCII
+    MOV SCORE_STR+2, DL            ; Store the hundreds digit in position 2 of SCORE_STR
 
-    XOR DX, DX
-    DIV BX                         ; DX = digito de decenas de miles
-    ADD DL, 30h
-    MOV SCORE_STR+0, DL            ; Guardar digito de decenas de miles en posicion 0
+    XOR DX, DX                     ; Clear DX before the next division
+    DIV BX                         ; AX = previous quotient / 10, DX = thousands digit
+    ADD DL, 30h                    ; Convert the thousands digit to ASCII
+    MOV SCORE_STR+1, DL            ; Store the thousands digit in position 1 of SCORE_STR
 
-    ; Restaurar fila/columna y mover el cursor de texto a esa posicion
-    POP DX                         ; DH = fila, DL = columna (restaurado antes de la conversion)
-    MOV BH, 00h                    ; Pagina de video 0
-    MOV AH, 02h                    ; Funcion INT 10h 02h = Posicionar cursor
-    INT 10h                        ; Mover cursor a (DH, DL)
+    XOR DX, DX                     ; Clear DX before the final division
+    DIV BX                         ; AX = previous quotient / 10, DX = ten-thousands digit
+    ADD DL, 30h                    ; Convert the ten-thousands digit to ASCII
+    MOV SCORE_STR+0, DL            ; Store the ten-thousands digit in position 0 of SCORE_STR
 
-    LEA SI, SCORE_STR              ; SI = direccion de la cadena ASCII del puntaje
+    ; Restore cursor row/column and move the text cursor to that position
+    POP DX                         ; Restore DH = row and DL = column passed by the caller
+    MOV BH, 00h                    ; Select video page 0
+    MOV AH, 02h                    ; Select INT 10h function 02h, set cursor position
+    INT 10h                        ; Move the text cursor to row DH and column DL
 
-DS_LOOP:
-    MOV AL, [SI]                   ; AL = siguiente caracter de la cadena
-    CMP AL, 00h                    ; Es el terminador nulo?
-    JE  DS_DONE                    ; Si: terminar la impresion
+    LEA SI, SCORE_STR              ; Load the address of the score string into SI
 
-    MOV AH, 0Eh                    ; Funcion INT 10h 0Eh = Salida de teletipo (imprime y avanza cursor)
-    MOV BH, 00h                    ; Pagina 0
-    INT 10h                        ; Imprimir caracter en AL
+DS_LOOP:                           ; Loop through each character of SCORE_STR
+    MOV AL, [SI]                   ; Load the current score character into AL
+    CMP AL, 00h                    ; Check if the current character is the null terminator
+    JE  DS_DONE                    ; If the null terminator is reached, stop printing
 
-    INC SI                         ; Avanzar al siguiente caracter
-    JMP DS_LOOP
+    MOV AH, 0Eh                    ; Select INT 10h function 0Eh, teletype character output
+    MOV BH, 00h                    ; Select video page 0
+    INT 10h                        ; Print the character in AL and advance the cursor
 
-DS_DONE:
-    RET
-DRAW_SCORE ENDP
+    INC SI                         ; Move SI to the next character of SCORE_STR
+    JMP DS_LOOP                    ; Repeat until the null terminator is found
+
+DS_DONE:                           ; End of score printing loop
+    RET                            ; Return to the caller
+DRAW_SCORE ENDP                    ; End of DRAW_SCORE procedure
 
 ; ============================================================
 ; DRAW_STRING
-; Dibuja una cadena ASCII terminada en nulo almacenada en DS.
-; Entrada: DH = fila, DL = columna (posicion del cursor de texto)
-;          SI = offset de la cadena dentro de DS
+; Draws a null-terminated ASCII string stored in DS.
+; Input: DH = row, DL = column (text cursor position)
+;        SI = offset of the string inside DS
 ; ============================================================
-DRAW_STRING PROC NEAR
-    MOV BH, 00h                    ; Pagina de video 0
-    MOV AH, 02h                    ; Funcion INT 10h: Posicionar cursor
-    INT 10h                        ; Mover cursor a (DH, DL)
 
-DSTR_LOOP:
-    MOV AL, [SI]                   ; AL = siguiente caracter de la cadena
-    CMP AL, 00h                    ; Terminador nulo alcanzado?
-    JE  DSTR_DONE                  ; Si: terminar
+DRAW_STRING PROC NEAR              ; Procedure that prints a null-terminated string at the cursor position
+    MOV BH, 00h                    ; Select video page 0
+    MOV AH, 02h                    ; Select INT 10h function 02h, set cursor position
+    INT 10h                        ; Move the cursor to the position stored in DH:DL
 
-    MOV AH, 0Eh                    ; Funcion INT 10h: Salida de teletipo
-    MOV BH, 00h                    ; Pagina 0
-    INT 10h                        ; Imprimir caracter y avanzar cursor
+DSTR_LOOP:                         ; Start of the string-printing loop
+    MOV AL, [SI]                   ; Load the next character from the string into AL
+    CMP AL, 00h                    ; Check if the current character is the null terminator
+    JE  DSTR_DONE                  ; If it is the null terminator, finish printing
 
-    INC SI                         ; Avanzar puntero de cadena
-    JMP DSTR_LOOP
+    MOV AH, 0Eh                    ; Select INT 10h function 0Eh, teletype character output
+    MOV BH, 00h                    ; Select video page 0
+    INT 10h                        ; Print the character in AL and advance the cursor
 
-DSTR_DONE:
-    RET
-DRAW_STRING ENDP
+    INC SI                         ; Move SI to the next character in the string
+    JMP DSTR_LOOP                  ; Repeat the loop until the null terminator is found
+
+DSTR_DONE:                         ; End label for the string-printing loop
+    RET                            ; Return to the caller
+DRAW_STRING ENDP                   ; End of DRAW_STRING procedure
 
 ; ============================================================
 ; PLAY_MUSIC_TICK
-; Reproductor de musica de fondo no bloqueante.
-; Se llama una vez por tick de juego. Cada MUSIC_TICK_FREQ ticks
-; avanza MELODY_IDX un paso (2 bytes) y:
-;   - Programa el canal 2 del PIT y activa el altavoz (nota audible), o
-;   - Desactiva el altavoz (silencio / pausa).
-; Al llegar al marcador de fin (0FFFFh), MELODY_IDX vuelve a 0.
+; Non-blocking background music player.
+; It is called once per game tick. Every MUSIC_TICK_FREQ ticks,
+; it advances MELODY_IDX by one step (2 bytes) and either:
+;   - Programs PIT channel 2 and enables the speaker for an audible note, or
+;   - Disables the speaker for a rest / silence.
+; When the end marker (0FFFFh) is reached, MELODY_IDX returns to 0.
 ; ============================================================
-PLAY_MUSIC_TICK PROC NEAR
-    INC MUSIC_TICK_CTR             ; Contar un tick mas de juego
-    MOV AX, MUSIC_TICK_CTR        ; AX = ticks desde el ultimo cambio de nota
-    CMP AX, MUSIC_TICK_FREQ       ; Se llego al intervalo de cambio de nota?
-    JL  PMT_EXIT                  ; No: mantener la nota actual y salir
 
-    MOV MUSIC_TICK_CTR, 0000h     ; Si: reiniciar contador de ticks
+PLAY_MUSIC_TICK PROC NEAR          ; Procedure that updates the background music without stopping the game
 
-    ; Leer el divisor PIT de la nota actual del array MELODY
-    MOV SI, OFFSET MELODY         ; SI = direccion base del array MELODY
-    ADD SI, MELODY_IDX            ; SI = direccion de la nota actual
-    MOV BX, WORD PTR [SI]         ; BX = divisor PIT de la nota actual
+    INC MUSIC_TICK_CTR             ; Increase the music tick counter by one game tick
+    MOV AX, MUSIC_TICK_CTR         ; Load the number of ticks since the last note change into AX
+    CMP AX, MUSIC_TICK_FREQ        ; Compare the tick counter with the note-change frequency
+    JL  PMT_EXIT                   ; If not enough ticks have passed, keep the current note and exit
 
-    CMP BX, 0FFFFh                ; Es el marcador de fin de melodia?
-    JNE PMT_PLAY                  ; No: reproducir/silenciar esta nota
-    MOV MELODY_IDX, 0000h         ; Si: volver al inicio de la melodia
-    MOV SI, OFFSET MELODY         ; Recargar SI apuntando a la primera nota
-    MOV BX, WORD PTR [SI]         ; BX = divisor de la primera nota
+    MOV MUSIC_TICK_CTR, 0000h      ; Reset the music tick counter because a note update will happen
 
-PMT_PLAY:
-    ADD MELODY_IDX, 0002h         ; Avanzar indice 2 bytes (una WORD = una nota)
+    ; Read the PIT divisor of the current note from the MELODY array
+    MOV SI, OFFSET MELODY          ; Load the base address of the MELODY array into SI
+    ADD SI, MELODY_IDX             ; Move SI to the current note using MELODY_IDX as a byte offset
+    MOV BX, WORD PTR [SI]          ; Load the current note divisor into BX
 
-    CMP BX, 0000h                 ; Es una pausa (silencio)?
-    JE  PMT_SILENCE               ; Si: desactivar altavoz
+    CMP BX, 0FFFFh                 ; Check if the current value is the melody end marker
+    JNE PMT_PLAY                   ; If it is not the end marker, process the current note
+    MOV MELODY_IDX, 0000h          ; If it is the end marker, restart the melody from the beginning
+    MOV SI, OFFSET MELODY          ; Reload SI with the base address of the MELODY array
+    MOV BX, WORD PTR [SI]          ; Load the first note divisor into BX
 
-    ; Programar el canal 2 del PIT con la frecuencia elegida
-    MOV AL, 0B6h                  ; Byte de comando PIT: canal 2, modo 3 (onda cuadrada), binario
-    OUT 43h, AL                   ; Escribir comando al registro de comando del PIT (puerto 0x43)
-    MOV AX, BX                    ; AX = divisor de frecuencia
-    OUT 42h, AL                   ; Enviar byte bajo del divisor al canal 2 del PIT (puerto 0x42)
-    MOV AL, AH                    ; AL = byte alto del divisor
-    OUT 42h, AL                   ; Enviar byte alto al canal 2
+PMT_PLAY:                          ; Label used to play a note or process a rest
+    ADD MELODY_IDX, 0002h          ; Advance MELODY_IDX by 2 bytes because each note is a WORD
 
-    ; Activar altavoz via Puerto B del sistema (puerto 0x61)
-    IN  AL, 61h                   ; Leer valor actual del puerto 0x61
-    OR  AL, 03h                   ; Poner bit 0 (gate del PIT2) y bit 1 (habilitar salida del altavoz)
-    OUT 61h, AL                   ; Escribir de vuelta: altavoz conectado al PIT canal 2
-    JMP PMT_EXIT
+    CMP BX, 0000h                  ; Check if the current note is a rest
+    JE  PMT_SILENCE                ; If the note is 0000h, silence the speaker
 
-PMT_SILENCE:
-    ; Desactivar altavoz: limpiar bits 0 y 1 del puerto 0x61
-    IN  AL, 61h                   ; Leer puerto 0x61
-    AND AL, 0FCh                  ; Limpiar bits 0 y 1 (0xFC = 11111100 en binario)
-    OUT 61h, AL                   ; Escribir de vuelta: altavoz silenciado
+    ; Program PIT channel 2 with the selected frequency divisor
+    MOV AL, 0B6h                   ; PIT command byte: channel 2, mode 3 square wave, binary count
+    OUT 43h, AL                    ; Send the PIT command to port 43h
+    MOV AX, BX                     ; Copy the PIT divisor from BX into AX
+    OUT 42h, AL                    ; Send the low byte of the divisor to PIT channel 2 through port 42h
+    MOV AL, AH                     ; Move the high byte of the divisor into AL
+    OUT 42h, AL                    ; Send the high byte of the divisor to PIT channel 2
 
-PMT_EXIT:
-    RET
-PLAY_MUSIC_TICK ENDP
+    ; Enable the PC speaker through system port 61h
+    IN  AL, 61h                    ; Read the current value of port 61h
+    OR  AL, 03h                    ; Set bits 0 and 1 to connect PIT channel 2 to the speaker
+    OUT 61h, AL                    ; Write the updated value back to port 61h to enable sound
+    JMP PMT_EXIT                   ; Exit after starting the note
+
+PMT_SILENCE:                       ; Label used when the current melody value is a rest
+    ; Disable the speaker by clearing bits 0 and 1 of port 61h
+    IN  AL, 61h                    ; Read the current value of port 61h
+    AND AL, 0FCh                   ; Clear bits 0 and 1 to disconnect and silence the speaker
+    OUT 61h, AL                    ; Write the updated value back to port 61h
+
+PMT_EXIT:                          ; Exit label for the music tick procedure
+    RET                            ; Return to the caller
+PLAY_MUSIC_TICK ENDP               ; End of PLAY_MUSIC_TICK procedure
 
 ; ============================================================
 ; PLAY_MELODY
-; Reproductor de melodia bloqueante, usado en la pantalla final.
-; Reproduce cada nota del array apuntado por SI, deteniendose
-; al encontrar el marcador de fin (0FFFFh).
-; Cada nota se mantiene un tiempo fijo mediante un bucle de espera.
-; Entrada: SI = offset del array de melodia (DW, termina con 0FFFFh)
+; Blocking melody player, used on the final screen.
+; Plays each note from the array pointed to by SI and stops
+; when it finds the end marker (0FFFFh).
+; Each note is held for a fixed time using a delay loop.
+; Input: SI = offset of the melody array (DW values, ending with 0FFFFh)
 ; ============================================================
-PLAY_MELODY PROC NEAR
+PLAY_MELODY PROC NEAR              ; Procedure that plays a complete melody and blocks execution until it finishes
 
-PM_NEXT_NOTE:
-    MOV BX, WORD PTR [SI]         ; BX = divisor PIT de la siguiente nota
-    CMP BX, 0FFFFh                ; Marcador de fin?
-    JE  PM_DONE                   ; Si: melodia terminada
+PM_NEXT_NOTE:                      ; Label used to read and process the next melody note
+    MOV BX, WORD PTR [SI]          ; Load the next PIT divisor from the melody array into BX
+    CMP BX, 0FFFFh                 ; Check if the current value is the end marker
+    JE  PM_DONE                    ; If it is the end marker, finish the melody
 
-    ADD SI, 0002h                 ; Avanzar SI a la siguiente nota (2 bytes por entrada)
+    ADD SI, 0002h                  ; Move SI to the next note because each note is a WORD of 2 bytes
 
-    CMP BX, 0000h                 ; Es una pausa (silencio)?
-    JE  PM_REST                   ; Si: apagar altavoz durante esta nota
+    CMP BX, 0000h                  ; Check if the current note is a rest / silence
+    JE  PM_REST                    ; If it is a rest, silence the speaker for this note duration
 
-    ; Reproducir nota: programar PIT canal 2 y activar altavoz
-    MOV AL, 0B6h                  ; Comando PIT: canal 2, lobyte/hibyte, modo 3, binario
-    OUT 43h, AL                   ; Escribir comando al PIT
-    MOV AX, BX                    ; AX = divisor
-    OUT 42h, AL                   ; Enviar byte bajo al canal 2
-    MOV AL, AH
-    OUT 42h, AL                   ; Enviar byte alto al canal 2
-    IN  AL, 61h                   ; Leer puerto de control del altavoz
-    OR  AL, 03h                   ; Activar altavoz (bits 0 y 1)
-    OUT 61h, AL                   ; Aplicar activacion
-    JMP PM_DELAY                  ; Ir a esperar la duracion de la nota
+    ; Play note: program PIT channel 2 and enable the PC speaker
+    MOV AL, 0B6h                   ; PIT command: channel 2, low/high byte access, mode 3, binary mode
+    OUT 43h, AL                    ; Send the PIT command byte to port 43h
+    MOV AX, BX                     ; Copy the PIT divisor from BX into AX
+    OUT 42h, AL                    ; Send the low byte of the divisor to PIT channel 2 through port 42h
+    MOV AL, AH                     ; Move the high byte of the divisor into AL
+    OUT 42h, AL                    ; Send the high byte of the divisor to PIT channel 2
+    IN  AL, 61h                    ; Read the current speaker control value from port 61h
+    OR  AL, 03h                    ; Set bits 0 and 1 to enable the speaker output
+    OUT 61h, AL                    ; Write the updated value back to port 61h
+    JMP PM_DELAY                   ; Go to the delay loop to hold this note
 
-PM_REST:
-    IN  AL, 61h                   ; Leer puerto de control del altavoz
-    AND AL, 0FCh                  ; Desactivar altavoz (limpiar bits 0 y 1)
-    OUT 61h, AL                   ; Aplicar silencio
+PM_REST:                           ; Label used when the current melody value is a silence/rest
+    IN  AL, 61h                    ; Read the current speaker control value from port 61h
+    AND AL, 0FCh                   ; Clear bits 0 and 1 to disable the speaker
+    OUT 61h, AL                    ; Write the updated value back to port 61h to apply silence
 
-PM_DELAY:
-    MOV CX, 8000h                 ; CX = cantidad de iteraciones de espera (~1/6 segundo en DOSBox)
-PM_DELAY_LOOP:
-    LOOP PM_DELAY_LOOP             ; Decrementar CX y repetir hasta llegar a cero (espera activa)
+PM_DELAY:                          ; Delay section that controls how long each note/rest lasts
+    MOV CX, 8000h                  ; Load CX with the number of delay-loop iterations
 
-    JMP PM_NEXT_NOTE               ; Pasar a la siguiente nota
+PM_DELAY_LOOP:                     ; Start of the active waiting loop
+    LOOP PM_DELAY_LOOP             ; Decrease CX and repeat until CX reaches zero
 
-PM_DONE:
-    IN  AL, 61h                   ; Asegurar que el altavoz quede apagado al terminar la melodia
-    AND AL, 0FCh
-    OUT 61h, AL
-    RET
-PLAY_MELODY ENDP
+    JMP PM_NEXT_NOTE               ; After the delay, continue with the next melody note
+
+PM_DONE:                           ; End label reached when the melody end marker is found
+    IN  AL, 61h                    ; Read the speaker control port to ensure the speaker can be disabled
+    AND AL, 0FCh                   ; Clear bits 0 and 1 to turn off the speaker
+    OUT 61h, AL                    ; Write the updated value back to port 61h
+    RET                            ; Return to the caller after the full melody finishes
+
+PLAY_MELODY ENDP                   ; End of PLAY_MELODY procedure
 
 ; ============================================================
 ; RESET_GAME
-; Restaura todas las variables de estado del juego a sus valores
-; iniciales. Se llama cuando el jugador presiona R en la pantalla
-; final. Al retornar, la ejecucion salta de vuelta a GAME_LOOP.
+; Restores all game state variables to their initial values.
+; It is called when the player presses R on the final screen.
+; After returning, execution jumps back to GAME_LOOP.
 ; ============================================================
-RESET_GAME PROC NEAR
+RESET_GAME PROC NEAR               ; Procedure that resets the game to its initial state
 
-    ; Restaurar banderas de estado del juego
-    MOV GAME_ACTIVE, 01h          ; Reactivar el bucle principal (1 = corriendo)
-    MOV GAME_WIN,    00h          ; Limpiar bandera de victoria
+    ; Restore game state flags
+    MOV GAME_ACTIVE, 01h          ; Reactivate the main game loop, 1 = running
+    MOV GAME_WIN,    00h          ; Clear the win flag, so the game does not start as a victory
 
-    ; Reiniciar puntaje a cero
-    MOV SCORE, 0000h
+    ; Reset score to zero
+    MOV SCORE, 0000h              ; Set the numeric score back to 0
 
-    ; Restaurar jugador a su posicion inicial (centro inferior de la pantalla)
-    MOV PLAYER_X, 0098h           ; X = 152 pixels (centro horizontal)
-    MOV PLAYER_Y, 00B0h           ; Y = 176 pixels (cerca del fondo)
+    ; Restore player to the initial position near the lower center of the screen
+    MOV PLAYER_X, 0098h           ; Restore player X position to 152 pixels
+    MOV PLAYER_Y, 00B0h           ; Restore player Y position to 176 pixels
 
-    ; Desactivar bala del jugador y limpiar su posicion
-    MOV BULLET_ACTIVE, 00h        ; Sin bala en vuelo
-    MOV BULLET_X, 0000h           ; Limpiar X de la bala
-    MOV BULLET_Y, 0000h           ; Limpiar Y de la bala
+    ; Deactivate player bullet and clear its position
+    MOV BULLET_ACTIVE, 00h        ; Mark the player bullet as inactive
+    MOV BULLET_X, 0000h           ; Clear the player bullet X position
+    MOV BULLET_Y, 0000h           ; Clear the player bullet Y position
 
-    ; Desactivar bala enemiga y limpiar su posicion
-    MOV EBULLET_ACTIVE, 00h       ; Sin bala enemiga en vuelo
-    MOV EBULLET_X, 0000h          ; Limpiar X de la bala enemiga
-    MOV EBULLET_Y, 0000h          ; Limpiar Y de la bala enemiga
+    ; Deactivate enemy bullet and clear its position
+    MOV EBULLET_ACTIVE, 00h       ; Mark the enemy bullet as inactive
+    MOV EBULLET_X, 0000h          ; Clear the enemy bullet X position
+    MOV EBULLET_Y, 0000h          ; Clear the enemy bullet Y position
 
-    ; Reiniciar contadores de movimiento y disparo de enemigos
-    MOV ENEMY_MOVE_CTR, 0000h     ; Reiniciar contador de ticks de movimiento
-    MOV ENEMY_SHOOT_CTR, 0000h    ; Reiniciar contador de ticks de disparo
-    MOV ENEMY_DIR, 01h            ; Los enemigos comienzan moviendose a la derecha
-    MOV ENEMY_COUNT, 0012h        ; Restaurar conteo total de enemigos (18 = 0x12)
+    ; Reset enemy movement and shooting counters
+    MOV ENEMY_MOVE_CTR, 0000h     ; Reset the enemy movement tick counter
+    MOV ENEMY_SHOOT_CTR, 0000h    ; Reset the enemy shooting tick counter
+    MOV ENEMY_DIR, 01h            ; Set enemies to begin moving to the right
+    MOV ENEMY_COUNT, 0012h        ; Restore total enemy count to 18 decimal, 0x12
 
-    ; Reiniciar estado de reproduccion de musica
-    MOV MELODY_IDX, 0000h         ; Volver al inicio de la melodia
-    MOV MUSIC_TICK_CTR, 0000h     ; Reiniciar contador de ticks de nota
+    ; Reset background music playback state
+    MOV MELODY_IDX, 0000h         ; Return the melody index to the beginning
+    MOV MUSIC_TICK_CTR, 0000h     ; Reset the music note tick counter
 
-    ; Limpiar TIME_AUX para que el primer tick del bucle se procese inmediatamente
-    MOV TIME_AUX, 00h
+    ; Clear TIME_AUX so the first game tick can be processed immediately
+    MOV TIME_AUX, 00h             ; Reset the stored time tick value
 
-    ; Restaurar ambos bunkers a su estado original sin danos
-    ; (patron: 0,1,1,1,1,1,0 / 1,1,1,1,1,1,1 / 1,1,1,1,1,1,1 / 1,1,0,0,0,1,1)
-    MOV SI, OFFSET BUNKER1_STATE  ; SI = inicio del array de estado del bunker 1
-    CALL RG_RESTORE_BUNKER        ; Escribir patron de 28 bytes en [SI]
-    MOV SI, OFFSET BUNKER2_STATE  ; SI = inicio del array de estado del bunker 2
-    CALL RG_RESTORE_BUNKER        ; Escribir patron de 28 bytes en [SI]
+    ; Restore both bunkers to their original undamaged state
+    ; Pattern: 0,1,1,1,1,1,0 / 1,1,1,1,1,1,1 / 1,1,1,1,1,1,1 / 1,1,0,0,0,1,1
+    MOV SI, OFFSET BUNKER1_STATE  ; Load SI with the start address of bunker 1 state array
+    CALL RG_RESTORE_BUNKER        ; Write the 28-byte original bunker pattern into bunker 1 state
+    MOV SI, OFFSET BUNKER2_STATE  ; Load SI with the start address of bunker 2 state array
+    CALL RG_RESTORE_BUNKER        ; Write the 28-byte original bunker pattern into bunker 2 state
 
-    ; Reinicializar posiciones y estados de todos los enemigos
-    CALL INIT_ENEMIES
+    ; Reinitialize positions and states of all enemies
+    CALL INIT_ENEMIES             ; Refill ENEMY_DATA with initial enemy positions and alive states
 
-    RET
+    RET                           ; Return to the caller
 
-; ---- Subrutina auxiliar: escribe el patron de 28 bytes del bunker en [SI] ----
-RG_RESTORE_BUNKER:
-    MOV BYTE PTR [SI+0],  00h     ; Fila 0, col 0: esquina transparente
-    MOV BYTE PTR [SI+1],  01h     ; Fila 0, col 1
-    MOV BYTE PTR [SI+2],  01h     ; Fila 0, col 2
-    MOV BYTE PTR [SI+3],  01h     ; Fila 0, col 3
-    MOV BYTE PTR [SI+4],  01h     ; Fila 0, col 4
-    MOV BYTE PTR [SI+5],  01h     ; Fila 0, col 5
-    MOV BYTE PTR [SI+6],  00h     ; Fila 0, col 6: esquina transparente
-    MOV BYTE PTR [SI+7],  01h     ; Fila 1, col 0
-    MOV BYTE PTR [SI+8],  01h     ; Fila 1, col 1
-    MOV BYTE PTR [SI+9],  01h     ; Fila 1, col 2
-    MOV BYTE PTR [SI+10], 01h     ; Fila 1, col 3
-    MOV BYTE PTR [SI+11], 01h     ; Fila 1, col 4
-    MOV BYTE PTR [SI+12], 01h     ; Fila 1, col 5
-    MOV BYTE PTR [SI+13], 01h     ; Fila 1, col 6
-    MOV BYTE PTR [SI+14], 01h     ; Fila 2, col 0
-    MOV BYTE PTR [SI+15], 01h     ; Fila 2, col 1
-    MOV BYTE PTR [SI+16], 01h     ; Fila 2, col 2
-    MOV BYTE PTR [SI+17], 01h     ; Fila 2, col 3
-    MOV BYTE PTR [SI+18], 01h     ; Fila 2, col 4
-    MOV BYTE PTR [SI+19], 01h     ; Fila 2, col 5
-    MOV BYTE PTR [SI+20], 01h     ; Fila 2, col 6
-    MOV BYTE PTR [SI+21], 01h     ; Fila 3, col 0
-    MOV BYTE PTR [SI+22], 00h     ; Fila 3, col 1: inicio del hueco central
-    MOV BYTE PTR [SI+23], 00h     ; Fila 3, col 2: centro del hueco
-    MOV BYTE PTR [SI+24], 00h     ; Fila 3, col 3: fin del hueco central
-    MOV BYTE PTR [SI+25], 01h     ; Fila 3, col 4
-    MOV BYTE PTR [SI+26], 01h     ; Fila 3, col 5
-    MOV BYTE PTR [SI+27], 01h     ; Fila 3, col 6  <- faltaba este byte (28vo pixel)
-    RET
+; ---- Helper subroutine: writes the 28-byte bunker pattern at [SI] ----
+RG_RESTORE_BUNKER:                 ; Local helper label used to restore one bunker state array
+    MOV BYTE PTR [SI+0],  00h     ; Row 0, column 0: transparent corner
+    MOV BYTE PTR [SI+1],  01h     ; Row 0, column 1: alive bunker pixel
+    MOV BYTE PTR [SI+2],  01h     ; Row 0, column 2: alive bunker pixel
+    MOV BYTE PTR [SI+3],  01h     ; Row 0, column 3: alive bunker pixel
+    MOV BYTE PTR [SI+4],  01h     ; Row 0, column 4: alive bunker pixel
+    MOV BYTE PTR [SI+5],  01h     ; Row 0, column 5: alive bunker pixel
+    MOV BYTE PTR [SI+6],  00h     ; Row 0, column 6: transparent corner
+    MOV BYTE PTR [SI+7],  01h     ; Row 1, column 0: alive bunker pixel
+    MOV BYTE PTR [SI+8],  01h     ; Row 1, column 1: alive bunker pixel
+    MOV BYTE PTR [SI+9],  01h     ; Row 1, column 2: alive bunker pixel
+    MOV BYTE PTR [SI+10], 01h     ; Row 1, column 3: alive bunker pixel
+    MOV BYTE PTR [SI+11], 01h     ; Row 1, column 4: alive bunker pixel
+    MOV BYTE PTR [SI+12], 01h     ; Row 1, column 5: alive bunker pixel
+    MOV BYTE PTR [SI+13], 01h     ; Row 1, column 6: alive bunker pixel
+    MOV BYTE PTR [SI+14], 01h     ; Row 2, column 0: alive bunker pixel
+    MOV BYTE PTR [SI+15], 01h     ; Row 2, column 1: alive bunker pixel
+    MOV BYTE PTR [SI+16], 01h     ; Row 2, column 2: alive bunker pixel
+    MOV BYTE PTR [SI+17], 01h     ; Row 2, column 3: alive bunker pixel
+    MOV BYTE PTR [SI+18], 01h     ; Row 2, column 4: alive bunker pixel
+    MOV BYTE PTR [SI+19], 01h     ; Row 2, column 5: alive bunker pixel
+    MOV BYTE PTR [SI+20], 01h     ; Row 2, column 6: alive bunker pixel
+    MOV BYTE PTR [SI+21], 01h     ; Row 3, column 0: alive bunker pixel
+    MOV BYTE PTR [SI+22], 00h     ; Row 3, column 1: start of the central opening
+    MOV BYTE PTR [SI+23], 00h     ; Row 3, column 2: middle of the central opening
+    MOV BYTE PTR [SI+24], 00h     ; Row 3, column 3: end of the central opening
+    MOV BYTE PTR [SI+25], 01h     ; Row 3, column 4: alive bunker pixel
+    MOV BYTE PTR [SI+26], 01h     ; Row 3, column 5: alive bunker pixel
+    MOV BYTE PTR [SI+27], 01h     ; Row 3, column 6: alive bunker pixel, the 28th bunker state byte
+    RET                           ; Return to RESET_GAME after restoring one bunker
 
-RESET_GAME ENDP
+RESET_GAME ENDP                    ; End of RESET_GAME procedure
 
 ; ============================================================
 ; PLAY_SOUND
-; Enciende el altavoz del PC a la frecuencia indicada por BX.
-; BX = divisor del PIT (frecuencia audible = 1.193.180 / BX).
-; Reproduce durante un breve retardo y luego retorna.
-; El llamador debe invocar STOP_SOUND despues si lo desea.
+; Turns on the PC speaker using the frequency indicated by BX.
+; BX = PIT divisor, where audible frequency = 1,193,180 / BX.
+; Plays the sound for a short delay and then returns.
+; The caller should call STOP_SOUND afterward if silence is needed.
 ; ============================================================
-PLAY_SOUND PROC NEAR
-    ; Paso 1: Configurar el canal 2 del PIT para la frecuencia deseada
-    ; Byte de comando 0B6h = binario 10110110:
-    ;   Bits 7-6 = 10: seleccionar canal 2
-    ;   Bits 5-4 = 11: modo de acceso lobyte/hibyte (enviar ambos bytes)
-    ;   Bits 3-1 = 011: modo 3 (generador de onda cuadrada)
-    ;   Bit  0   = 0:  conteo binario (no BCD)
-    MOV AL, 0B6h                  ; Byte de comando del PIT
-    OUT 43h, AL                   ; Escribir al registro de comando del PIT (puerto 0x43)
+PLAY_SOUND PROC NEAR               ; Procedure that starts a short PC speaker sound using the PIT divisor in BX
 
-    MOV AX, BX                    ; AX = divisor de frecuencia pasado por el llamador
-    OUT 42h, AL                   ; Enviar byte bajo del divisor al canal 2 del PIT (puerto 0x42)
-    MOV AL, AH                    ; AL = byte alto
-    OUT 42h, AL                   ; Enviar byte alto del divisor
+    ; Step 1: Configure PIT channel 2 for the desired frequency
+    ; Command byte 0B6h = binary 10110110:
+    ;   Bits 7-6 = 10: select channel 2
+    ;   Bits 5-4 = 11: access mode lobyte/hibyte, meaning both bytes are sent
+    ;   Bits 3-1 = 011: mode 3, square wave generator
+    ;   Bit  0   = 0: binary counting mode, not BCD
+    MOV AL, 0B6h                  ; Load the PIT command byte into AL
+    OUT 43h, AL                   ; Send the command byte to the PIT command port 43h
 
-    ; Paso 2: Activar el altavoz via Puerto B del sistema (puerto 0x61)
-    IN  AL, 61h                   ; Leer valor actual del puerto 0x61
-    OR  AL, 03h                   ; Poner bit 0 (gate PIT2) y bit 1 (habilitar salida del altavoz)
-    OUT 61h, AL                   ; Escribir de vuelta: altavoz conectado al PIT canal 2
+    MOV AX, BX                    ; Copy the frequency divisor from BX into AX
+    OUT 42h, AL                   ; Send the low byte of the divisor to PIT channel 2 through port 42h
+    MOV AL, AH                    ; Move the high byte of the divisor into AL
+    OUT 42h, AL                   ; Send the high byte of the divisor to PIT channel 2 through port 42h
 
-    ; Paso 3: Espera activa para que el sonido sea audible
-    MOV CX, 0FFFFh                ; CX = cantidad de iteraciones (65535)
-PS_DELAY:
-    LOOP PS_DELAY                 ; Decrementar CX y repetir hasta llegar a cero
+    ; Step 2: Enable the speaker through system port 61h
+    IN  AL, 61h                   ; Read the current value of system port 61h
+    OR  AL, 03h                   ; Set bits 0 and 1 to enable PIT channel 2 output to the speaker
+    OUT 61h, AL                   ; Write the updated value back to port 61h to turn on the speaker
 
-    RET
-PLAY_SOUND ENDP
+    ; Step 3: Active delay so the sound is audible
+    MOV CX, 0FFFFh                ; Load CX with 65535 delay-loop iterations
+
+PS_DELAY:                         ; Delay loop label
+    LOOP PS_DELAY                 ; Decrement CX and repeat until CX reaches zero
+
+    RET                           ; Return to the caller after the sound delay
+PLAY_SOUND ENDP                   ; End of PLAY_SOUND procedure
 
 ; ============================================================
 ; STOP_SOUND
-; Silencia el altavoz limpiando los bits 0 y 1 del puerto 0x61.
-; Bit 0: gate del canal 2 del PIT (0 = deshabilitado)
-; Bit 1: habilitacion de salida del altavoz (0 = desconectado)
+; Silences the PC speaker by clearing bits 0 and 1 of port 61h.
+; Bit 0: PIT channel 2 gate control, 0 = disabled
+; Bit 1: speaker output enable, 0 = disconnected
 ; ============================================================
-STOP_SOUND PROC NEAR
-    IN  AL, 61h                   ; Leer Puerto B del sistema
-    AND AL, 0FCh                  ; Limpiar bits 0 y 1 (0xFC = 1111 1100 en binario)
-    OUT 61h, AL                   ; Escribir de vuelta: salida del altavoz deshabilitada
-    RET
-STOP_SOUND ENDP
+STOP_SOUND PROC NEAR               ; Procedure that turns off the PC speaker
+    IN  AL, 61h                   ; Read the current value of system port 61h
+    AND AL, 0FCh                  ; Clear bits 0 and 1, since 0FCh = 11111100b
+    OUT 61h, AL                   ; Write the updated value back, disabling speaker output
+    RET                           ; Return to the caller
+STOP_SOUND ENDP                   ; End of STOP_SOUND procedure
 
 ; ============================================================
 ; CLEAR_SCREEN
-; Borra la pantalla visible usando la funcion de desplazamiento
-; del BIOS con 0 lineas (lo que limpia toda la ventana).
-; NO reinicia el modo de video (evita el parpadeo que ocurriria
-; si se llamara INT 10h/AH=00h cada frame como se hacia antes).
+; Clears the visible screen using the BIOS scroll function
+; with 0 lines, which clears the whole selected window.
+; It does NOT reset the video mode, avoiding the flickering that
+; would happen if INT 10h/AH=00h were called every frame.
 ; ============================================================
-CLEAR_SCREEN PROC NEAR
-    MOV AH, 06h                   ; Funcion INT 10h 06h = Desplazar ventana hacia arriba
-    MOV AL, 00h                   ; AL = 0 lineas a desplazar = limpiar toda la ventana
-    MOV BH, 00h                   ; Atributo de relleno: color 0 (fondo negro)
-    MOV CX, 0000h                 ; CH:CL = esquina superior izquierda (fila 0, col 0)
-    MOV DX, 184Fh                ; DH:DL = esquina inferior derecha en coordenadas de TEXTO
-                                 ; DH=18h=24 (fila 24, ultima fila de texto en modo 25 filas)
-                                 ; DL=4Fh=79 (columna 79, ultima columna en modo 80 columnas)
-    INT 10h                       ; Ejecutar desplazamiento/limpieza
-    RET
-CLEAR_SCREEN ENDP
+CLEAR_SCREEN PROC NEAR             ; Procedure that clears the screen without changing video mode
+    MOV AH, 06h                   ; Select INT 10h function 06h, scroll window up
+    MOV AL, 00h                   ; AL = 0 lines to scroll, meaning clear the whole window
+    MOV BH, 00h                   ; Fill attribute/color value, 0 = black background
+    MOV CX, 0000h                 ; CH:CL = upper-left corner in text coordinates, row 0 column 0
+    MOV DX, 184Fh                 ; DH:DL = lower-right corner in text coordinates
+                                  ; DH = 18h = 24, the last row in a 25-row text grid
+                                  ; DL = 4Fh = 79, the last column in an 80-column text grid
+    INT 10h                       ; Execute the BIOS scroll/clear operation
+    RET                           ; Return to the caller
+CLEAR_SCREEN ENDP                 ; End of CLEAR_SCREEN procedure
 
-CODE ENDS                         ; Fin del segmento de codigo
-END MAIN                          ; Fin del archivo fuente; punto de entrada del programa = MAIN
+CODE ENDS                         ; Ends the code segment
+END MAIN                          ; Ends the source file and sets MAIN as the program entry point
